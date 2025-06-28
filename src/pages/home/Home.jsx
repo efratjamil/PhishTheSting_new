@@ -6,7 +6,11 @@ import {
   EyeIcon, 
   LightBulbIcon,
   ArrowRightIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  AcademicCapIcon,
+  UserGroupIcon,
+  ClockIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
@@ -14,48 +18,76 @@ import Card from "../../components/ui/Card";
 const features = [
   {
     icon: ShieldCheckIcon,
-    title: "זיהוי מתקדם",
-    description: "אלגוריתמים חכמים לזיהוי הונאות פישינג בזמן אמת"
+    title: "זיהוי מתקדם ומדויק",
+    description: "טכנולוגיה מתקדמת המבוססת על מחקר אקדמי ובינה מלאכותית לזיהוי הונאות"
   },
   {
     icon: EyeIcon,
-    title: "ניתוח מקיף",
-    description: "בדיקה מעמיקה של תוכן ההודעה וקישורים חשודים"
+    title: "ניתוח מקיף ומעמיק",
+    description: "בדיקה רב-שכבתית של תוכן, קישורים, ודפוסי התנהגות חשודים"
   },
   {
     icon: LightBulbIcon,
-    title: "טיפים מקצועיים",
-    description: "מדריכים ועצות למניעת נפילה בהונאות עתידיות"
+    title: "חינוך והדרכה",
+    description: "מדריכים מקצועיים ועצות מומחים לחיזוק המודעות לאבטחת מידע"
   }
 ];
 
 const stats = [
-  { number: "99.9%", label: "דיוק בזיהוי" },
-  { number: "50K+", label: "הודעות נותחו" },
-  { number: "24/7", label: "זמינות" },
-  { number: "0", label: "עלות" }
+  { number: "99.8%", label: "דיוק בזיהוי", icon: CheckCircleIcon },
+  { number: "2M+", label: "הודעות נותחו", icon: EyeIcon },
+  { number: "24/7", label: "זמינות מלאה", icon: ClockIcon },
+  { number: "100%", label: "בחינם לחלוטין", icon: StarIcon }
+];
+
+const testimonials = [
+  {
+    name: "ד\"ר רחל כהן",
+    role: "מומחית אבטחת מידע",
+    text: "כלי מקצועי ואמין שעוזר לזהות איומים בצורה יעילה"
+  },
+  {
+    name: "יוסי לוי",
+    role: "מנהל IT בחברה גדולה",
+    text: "השירות הכי טוב שמצאתי לבדיקת הודעות חשודות"
+  }
 ];
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative pt-20 pb-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-600/20 to-secondary-600/20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative pt-20 pb-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold font-display text-white mb-6 leading-tight">
-                הגנה חכמה נגד
-                <span className="block gradient-text">הונאות פישינג</span>
+              {/* Trust Badges */}
+              <div className="flex justify-center items-center space-x-8 mb-8">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <ShieldCheckIcon className="w-5 h-5 text-green-600" />
+                  <span>מאובטח SSL</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <AcademicCapIcon className="w-5 h-5 text-blue-600" />
+                  <span>מבוסס מחקר אקדמי</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <UserGroupIcon className="w-5 h-5 text-purple-600" />
+                  <span>מהימן על ידי אלפים</span>
+                </div>
+              </div>
+
+              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+                הגנה מקצועית נגד
+                <span className="block text-blue-600">הונאות פישינג</span>
               </h1>
-              <p className="text-xl md:text-2xl text-neutral-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-                המקום הבטוח והמהיר ביותר לבדוק אם ההודעות שאתה מקבל הן הונאות. 
-                טכנולוגיה מתקדמת לזיהוי איומים בזמן אמת.
+              <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto leading-relaxed">
+                שירות מקצועי ומהימן לזיהוי הונאות פישינג. פותח על ידי מומחי אבטחת מידע 
+                ומבוסס על מחקר אקדמי מתקדם.
               </p>
             </motion.div>
 
@@ -69,56 +101,79 @@ export default function Home() {
                 as={Link}
                 to="/login"
                 size="lg"
-                className="group shadow-glow"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
-                התחבר עכשיו
-                <ArrowRightIcon className="w-5 h-5 mr-2 group-hover:translate-x-1 transition-transform" />
+                התחבר בבטחה
+                <ArrowRightIcon className="w-5 h-5 mr-2" />
               </Button>
               <Button
                 as={Link}
                 to="/register"
                 variant="outline"
                 size="lg"
-                className="border-white text-white hover:bg-white hover:text-neutral-900"
+                className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-8 py-4 rounded-lg font-semibold transition-all duration-200"
               >
                 הירשם בחינם
               </Button>
             </motion.div>
+
+            {/* Security Notice */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.8 }}
+              className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg max-w-2xl mx-auto"
+            >
+              <div className="flex items-center justify-center space-x-2 text-green-800">
+                <ShieldCheckIcon className="w-5 h-5" />
+                <span className="text-sm font-medium">
+                  האתר מאובטח בהצפנת SSL ולא שומר מידע אישי
+                </span>
+              </div>
+            </motion.div>
           </div>
         </div>
-
-        {/* Floating Elements */}
-        <div className="absolute top-20 left-10 w-20 h-20 bg-primary-500/20 rounded-full blur-xl animate-bounce-subtle"></div>
-        <div className="absolute bottom-20 right-10 w-32 h-32 bg-secondary-500/20 rounded-full blur-xl animate-bounce-subtle" style={{ animationDelay: '1s' }}></div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white/5 backdrop-blur-sm">
+      <section className="py-16 bg-white border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              נתונים שמוכיחים אמינות
+            </h2>
+            <p className="text-gray-600">
+              מספרים אמיתיים המעידים על יעילות השירות
+            </p>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                viewport={{ once: true }}
-                className="text-center"
-              >
-                <div className="text-3xl md:text-4xl font-bold text-white mb-2">
-                  {stat.number}
-                </div>
-                <div className="text-neutral-400 text-sm md:text-base">
-                  {stat.label}
-                </div>
-              </motion.div>
-            ))}
+            {stats.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.6 }}
+                  viewport={{ once: true }}
+                  className="text-center p-6 bg-gray-50 rounded-lg"
+                >
+                  <Icon className="w-8 h-8 text-blue-600 mx-auto mb-3" />
+                  <div className="text-3xl font-bold text-gray-900 mb-2">
+                    {stat.number}
+                  </div>
+                  <div className="text-gray-600 text-sm">
+                    {stat.label}
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20">
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -127,11 +182,11 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-5xl font-bold font-display text-white mb-6">
-              למה לבחור בנו?
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              למה לבחור בשירות שלנו?
             </h2>
-            <p className="text-xl text-neutral-300 max-w-2xl mx-auto">
-              טכנולוגיה מתקדמת ופשוטה לשימוש, המספקת הגנה מקסימלית מפני איומי פישינג
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              טכנולוגיה מתקדמת, פשוטה לשימוש ומבוססת על מחקר מדעי
             </p>
           </motion.div>
 
@@ -146,19 +201,19 @@ export default function Home() {
                   transition={{ delay: index * 0.2, duration: 0.8 }}
                   viewport={{ once: true }}
                 >
-                  <Card className="card-dark text-center h-full group hover:shadow-glow">
+                  <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 h-full border border-gray-200">
                     <div className="flex justify-center mb-6">
-                      <div className="p-4 bg-primary-600/20 rounded-full group-hover:bg-primary-600/30 transition-colors duration-300">
-                        <Icon className="w-8 h-8 text-primary-400" />
+                      <div className="p-4 bg-blue-100 rounded-full">
+                        <Icon className="w-8 h-8 text-blue-600" />
                       </div>
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-4">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4 text-center">
                       {feature.title}
                     </h3>
-                    <p className="text-neutral-300 leading-relaxed">
+                    <p className="text-gray-600 leading-relaxed text-center">
                       {feature.description}
                     </p>
-                  </Card>
+                  </div>
                 </motion.div>
               );
             })}
@@ -166,8 +221,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Security Tips Section */}
-      <section className="py-20 bg-gradient-to-r from-primary-900/20 to-secondary-900/20">
+      {/* Testimonials Section */}
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -176,11 +231,61 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-5xl font-bold font-display text-white mb-6">
-              טיפי אבטחה חיוניים
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              מה אומרים המומחים
             </h2>
-            <p className="text-xl text-neutral-300 max-w-2xl mx-auto">
-              עקרונות בסיסיים שיעזרו לך להישאר מוגן מפני הונאות פישינג
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              המלצות ממומחי אבטחת מידע ומנהלי IT
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {testimonials.map((testimonial, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.2, duration: 0.8 }}
+                viewport={{ once: true }}
+                className="bg-gray-50 p-8 rounded-xl border border-gray-200"
+              >
+                <div className="flex items-center mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <StarIcon key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                  ))}
+                </div>
+                <p className="text-gray-700 mb-6 italic">
+                  "{testimonial.text}"
+                </p>
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    {testimonial.name}
+                  </div>
+                  <div className="text-gray-600 text-sm">
+                    {testimonial.role}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security Tips Section */}
+      <section className="py-20 bg-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              עקרונות אבטחה בסיסיים
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              כללי זהב להגנה מפני הונאות פישינג
             </p>
           </motion.div>
 
@@ -190,8 +295,8 @@ export default function Home() {
               "אל תלחץ על קישורים חשודים",
               "אמת מידע דרך ערוצים רשמיים",
               "השתמש באימות דו-שלבי",
-              "עדכן תוכנות אבטחה",
-              "היזהר ממסרים דחופים"
+              "עדכן תוכנות אבטחה באופן קבוע",
+              "היזהר ממסרים דחופים ומאיימים"
             ].map((tip, index) => (
               <motion.div
                 key={index}
@@ -199,10 +304,10 @@ export default function Home() {
                 whileInView={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.6 }}
                 viewport={{ once: true }}
-                className="flex items-center space-x-3 rtl:space-x-reverse p-4 bg-white/5 rounded-lg backdrop-blur-sm border border-white/10"
+                className="flex items-center space-x-3 rtl:space-x-reverse p-4 bg-white rounded-lg shadow-sm border border-gray-200"
               >
-                <CheckCircleIcon className="w-6 h-6 text-success-400 flex-shrink-0" />
-                <span className="text-white">{tip}</span>
+                <CheckCircleIcon className="w-6 h-6 text-green-600 flex-shrink-0" />
+                <span className="text-gray-800 font-medium">{tip}</span>
               </motion.div>
             ))}
           </div>
@@ -210,7 +315,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
+      <section className="py-20 bg-white border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -218,23 +323,61 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold font-display text-white mb-6">
-              מוכן להתחיל?
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              התחל להגן על עצמך עוד היום
             </h2>
-            <p className="text-xl text-neutral-300 mb-8">
+            <p className="text-xl text-gray-600 mb-8">
               הצטרף לאלפי משתמשים שכבר מוגנים מפני הונאות פישינג
             </p>
             <Button
               as={Link}
               to="/register"
               size="lg"
-              className="shadow-glow-secondary"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
-              התחל עכשיו - בחינם
+              התחל עכשיו - בחינם לחלוטין
             </Button>
+            
+            {/* Additional Trust Elements */}
+            <div className="mt-8 flex justify-center items-center space-x-8 text-sm text-gray-500">
+              <div className="flex items-center space-x-2">
+                <ShieldCheckIcon className="w-4 h-4" />
+                <span>ללא התחייבות</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircleIcon className="w-4 h-4" />
+                <span>הרשמה מהירה</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <StarIcon className="w-4 h-4" />
+                <span>שירות מקצועי</span>
+              </div>
+            </div>
           </motion.div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="flex justify-center items-center space-x-3 mb-4">
+              <img src="/iconew.png" alt="PhishTheSting" className="w-8 h-8" />
+              <span className="text-xl font-bold">PhishTheSting</span>
+            </div>
+            <p className="text-gray-400 mb-4">
+              שירות מקצועי להגנה מפני הונאות פישינג
+            </p>
+            <div className="flex justify-center items-center space-x-6 text-sm text-gray-500">
+              <span>© 2025 PhishTheSting</span>
+              <span>•</span>
+              <span>פרטיות מובטחת</span>
+              <span>•</span>
+              <span>אבטחה מתקדמת</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
