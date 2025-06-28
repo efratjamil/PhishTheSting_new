@@ -65,24 +65,24 @@ export default function Home() {
               transition={{ delay: 0.3, duration: 0.8 }}
               className="flex flex-col sm:flex-row gap-4 justify-center items-center"
             >
-              <Link to="/login">
-                <Button
-                  size="lg"
-                  className="group shadow-glow"
-                >
-                  התחבר עכשיו
-                  <ArrowRightIcon className="w-5 h-5 mr-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-white text-white hover:bg-white hover:text-neutral-900"
-                >
-                  הירשם בחינם
-                </Button>
-              </Link>
+              <Button
+                as={Link}
+                to="/login"
+                size="lg"
+                className="group shadow-glow"
+              >
+                התחבר עכשיו
+                <ArrowRightIcon className="w-5 h-5 mr-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              <Button
+                as={Link}
+                to="/register"
+                variant="outline"
+                size="lg"
+                className="border-white text-white hover:bg-white hover:text-neutral-900"
+              >
+                הירשם בחינם
+              </Button>
             </motion.div>
           </div>
         </div>
@@ -224,14 +224,14 @@ export default function Home() {
             <p className="text-xl text-neutral-300 mb-8">
               הצטרף לאלפי משתמשים שכבר מוגנים מפני הונאות פישינג
             </p>
-            <Link to="/register">
-              <Button
-                size="lg"
-                className="shadow-glow-secondary"
-              >
-                התחל עכשיו - בחינם
-              </Button>
-            </Link>
+            <Button
+              as={Link}
+              to="/register"
+              size="lg"
+              className="shadow-glow-secondary"
+            >
+              התחל עכשיו - בחינם
+            </Button>
           </motion.div>
         </div>
       </section>
