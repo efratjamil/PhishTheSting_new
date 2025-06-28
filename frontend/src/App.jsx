@@ -1,22 +1,19 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
-import Navbar from "./components/navbar";
-import Home from "./pages/home/home";
-import Login from "./pages/login/login";
-import Register from "./pages/register/register";
-import Analyze from "./pages/analyze/analyze";
-import History from "./pages/history/history"; // ✅ הוספת מסך היסטוריה
-import Profile from "./components/profile";
-import Result from "./pages/result/result";
-
-const theme = createTheme(); // יצירת נושא ברירת מחדל עבור MUI
+import Navbar from "./components/layout/Navbar";
+import Home from "./pages/home/Home";
+import Login from "./pages/login/Login";
+import Register from "./pages/register/Register";
+import Analyze from "./pages/analyze/Analyze";
+import History from "./pages/history/History";
+import Profile from "./pages/profile/Profile";
+import Result from "./pages/result/Result";
 
 const App = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <Router>
-        <Navbar /> {/* סרגל הניווט יוצג בכל הדפים */}
+    <Router>
+      <div className="min-h-screen bg-neutral-900">
+        <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -26,8 +23,8 @@ const App = () => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/result" element={<Result />} />
         </Routes>
-      </Router>
-    </ThemeProvider>
+      </div>
+    </Router>
   );
 };
 
