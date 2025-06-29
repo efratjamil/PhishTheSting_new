@@ -2,11 +2,10 @@ import React, { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, CheckCircleIcon, ShieldCheckIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
-import Card from "../../components/ui/Card";
 import { isEmptyField, isValidEmail, isStrongPassword } from "../../utils/validation";
 
 export default function Register() {
@@ -85,52 +84,58 @@ export default function Register() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <Card className="card-dark max-w-md">
-            <div className="text-center">
-              <CheckCircleIcon className="w-16 h-16 text-success-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-white mb-2">
-                נרשמת בהצלחה!
-              </h2>
-              <p className="text-neutral-300">
-                מועבר לדף התחברות...
-              </p>
-            </div>
-          </Card>
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-md">
+            <CheckCircleIcon className="w-16 h-16 text-green-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              נרשמת בהצלחה!
+            </h2>
+            <p className="text-gray-600">
+              מועבר לדף התחברות...
+            </p>
+          </div>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <Card className="card-dark">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
             <div className="text-center mb-8">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4"
+                className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100"
               >
                 <img src="/iconew.png" alt="Logo" className="w-10 h-10" />
               </motion.div>
-              <h1 className="text-2xl font-bold text-white mb-2">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
                 הצטרף אלינו
               </h1>
-              <p className="text-neutral-400">
+              <p className="text-gray-600">
                 צור חשבון חדש והתחל להגן על עצמך
               </p>
+            </div>
+
+            {/* Security Notice */}
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <div className="flex items-center space-x-2 text-green-800 text-sm">
+                <LockClosedIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="font-medium">הרשמה מאובטחת - המידע שלך מוגן</span>
+              </div>
             </div>
 
             {errors.general && (
@@ -148,7 +153,7 @@ export default function Register() {
                   onChange={handleChange}
                   error={errors.firstName}
                   required
-                  className="input-field-dark"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white"
                   placeholder="יוחנן"
                 />
                 <Input
@@ -158,7 +163,7 @@ export default function Register() {
                   onChange={handleChange}
                   error={errors.lastName}
                   required
-                  className="input-field-dark"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white"
                   placeholder="כהן"
                 />
               </div>
@@ -171,7 +176,7 @@ export default function Register() {
                 onChange={handleChange}
                 error={errors.email}
                 required
-                className="input-field-dark"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white"
                 placeholder="your@email.com"
               />
 
@@ -184,13 +189,13 @@ export default function Register() {
                   onChange={handleChange}
                   error={errors.password}
                   required
-                  className="input-field-dark pr-12"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 pr-12 bg-white"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3 top-9 text-neutral-400 hover:text-white transition-colors"
+                  className="absolute left-3 top-9 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showPassword ? (
                     <EyeSlashIcon className="w-5 h-5" />
@@ -202,27 +207,41 @@ export default function Register() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                 size="lg"
                 loading={loading}
                 disabled={Object.values(formData).some(value => !value.trim())}
               >
-                {loading ? "נרשם..." : "הירשם"}
+                {loading ? "נרשם..." : "הירשם בבטחה"}
               </Button>
             </form>
 
             <div className="mt-8 text-center">
-              <p className="text-neutral-400">
+              <p className="text-gray-600">
                 כבר יש לך חשבון?{" "}
                 <Link
                   to="/login"
-                  className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                  className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
                 >
                   התחבר כאן
                 </Link>
               </p>
             </div>
-          </Card>
+
+            {/* Trust Elements */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex justify-center items-center space-x-4 text-xs text-gray-500">
+                <div className="flex items-center space-x-1">
+                  <ShieldCheckIcon className="w-3 h-3" />
+                  <span>מאובטח</span>
+                </div>
+                <span>•</span>
+                <span>ללא התחייבות</span>
+                <span>•</span>
+                <span>בחינם לחלוטין</span>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

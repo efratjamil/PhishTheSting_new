@@ -52,7 +52,7 @@ const Navbar = () => {
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="fixed top-0 left-0 right-0 z-50 glass-effect border-b border-white/20"
+      className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -62,14 +62,14 @@ const Navbar = () => {
             className="flex items-center space-x-3 rtl:space-x-reverse group"
           >
             <motion.img
-              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileHover={{ scale: 1.05 }}
               src="/iconew.png"
               alt="PhishTheSting Logo"
               className="h-10 w-10"
             />
             <motion.span
-              className="text-xl font-bold font-display text-white group-hover:text-secondary-400 transition-colors duration-200"
-              whileHover={{ scale: 1.05 }}
+              className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200"
+              whileHover={{ scale: 1.02 }}
             >
               PhishTheSting
             </motion.span>
@@ -83,7 +83,7 @@ const Navbar = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex items-center space-x-2 rtl:space-x-reverse text-white hover:text-secondary-400 transition-colors duration-200 p-2 rounded-lg hover:bg-white/10"
+                  className="flex items-center space-x-2 rtl:space-x-reverse text-gray-700 hover:text-blue-600 transition-colors duration-200 p-2 rounded-lg hover:bg-gray-100"
                 >
                   <UserCircleIcon className="h-8 w-8" />
                   <span className="font-medium">{user.firstName}</span>
@@ -95,7 +95,7 @@ const Navbar = () => {
                       initial={{ opacity: 0, y: -10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-neutral-200 py-2"
+                      className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2"
                     >
                       {menuItems.map((item, index) => {
                         const Icon = item.icon;
@@ -108,7 +108,7 @@ const Navbar = () => {
                           >
                             <Link
                               to={item.path}
-                              className="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 text-neutral-700 hover:bg-neutral-50 hover:text-primary-600 transition-colors duration-200"
+                              className="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200"
                               onClick={() => setIsMenuOpen(false)}
                             >
                               <Icon className="h-5 w-5" />
@@ -117,13 +117,13 @@ const Navbar = () => {
                           </motion.div>
                         );
                       })}
-                      <hr className="my-2 border-neutral-200" />
+                      <hr className="my-2 border-gray-200" />
                       <motion.button
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: menuItems.length * 0.1 }}
                         onClick={handleLogout}
-                        className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 text-danger-600 hover:bg-danger-50 transition-colors duration-200"
+                        className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 text-red-600 hover:bg-red-50 transition-colors duration-200"
                       >
                         <ArrowRightOnRectangleIcon className="h-5 w-5" />
                         <span>התנתק</span>
@@ -141,7 +141,7 @@ const Navbar = () => {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="text-white hover:text-secondary-400 transition-colors duration-200 p-2"
+                className="text-gray-700 hover:text-blue-600 transition-colors duration-200 p-2"
               >
                 {isMobileMenuOpen ? (
                   <XMarkIcon className="h-6 w-6" />
@@ -160,7 +160,7 @@ const Navbar = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-white/20 mt-4 pt-4 pb-4"
+              className="md:hidden border-t border-gray-200 mt-4 pt-4 pb-4"
             >
               <div className="space-y-2">
                 {menuItems.map((item, index) => {
@@ -174,7 +174,7 @@ const Navbar = () => {
                     >
                       <Link
                         to={item.path}
-                        className="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors duration-200"
+                        className="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <Icon className="h-5 w-5" />
@@ -188,7 +188,7 @@ const Navbar = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: menuItems.length * 0.1 }}
                   onClick={handleLogout}
-                  className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 text-danger-400 hover:bg-danger-500/10 rounded-lg transition-colors duration-200"
+                  className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                 >
                   <ArrowRightOnRectangleIcon className="h-5 w-5" />
                   <span>התנתק</span>
