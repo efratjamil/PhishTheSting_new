@@ -12,17 +12,22 @@ import Result from "./pages/result/Result";
 const App = () => {
   return (
     <Router>
-      <div className="min-h-screen bg-neutral-900">
+      <div className="min-h-screen bg-gray-50">
+        {" "}
+        {/* רקע בהיר לעמודים */}
         <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/analyze" element={<Analyze />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/result" element={<Result />} />
-        </Routes>
+        <div className="h-16" /> {/* <<< הרווח הקבוע מתחת ל-navbar (fixed) */}
+        <main>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/analyze" element={<Analyze />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/result" element={<Result />} />
+          </Routes>
+        </main>
       </div>
     </Router>
   );
