@@ -1,62 +1,83 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  ClockIcon, 
-  ShieldCheckIcon, 
+import {
+  ClockIcon,
+  ShieldCheckIcon,
   ExclamationTriangleIcon,
-  DocumentTextIcon
-} from '@heroicons/react/24/outline';
+  DocumentTextIcon,
+} from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
+import Alert from "../../components/ui/Alert";
 
 export default function History() {
-  const [history] = useState([
-    {
-      id: 1,
-      date: "2025-02-01 14:30",
-      message: `הודעה חשודה לדוגמה: נא לאמת פרטים בקישור http://fake-link.com`,
-      result: "suspicious",
-      matchedWords: ["אמת פרטים", "קישור", "פרס לזכייה"]
-    },
-    {
-      id: 2,
-      date: "2025-02-01 10:15",
-      message: `זכית בפרס! היכנס לקישור כדי לקבלו`,
-      result: "suspicious",
-      matchedWords: ["זכית", "קישור"]
-    },
-    {
-      id: 3,
-      date: "2025-01-30 18:45",
-      message: `שלום, משלוח הוזמן ותואם. אין צורך בפעולה`,
-      result: "safe",
-      matchedWords: []
-    },
-    {
-      id: 4,
-      date: "2025-01-29 09:20",
-      message: `תזכורת: פגישה היום בשעה 10:00`,
-      result: "safe",
-      matchedWords: []
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (!user?.id) {
+      navigate("/login");
+      return;
     }
-  ]);
+
+    const fetchHistory = async () => {
+      try {
+        const { data } = await axios.get(
+          `http://localhost:5000/api/analyze/history/${user.id}`
+        );
+        setHistory(data.items || []);
+      } catch (err) {
+        setError(err.response?.data?.error || "שגיאה בטעינת ההיסטוריה");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [navigate]);
 
   const getResultConfig = (result) => {
-    return result === 'suspicious' 
+    return result === "suspicious"
       ? {
           icon: ExclamationTriangleIcon,
-          text: 'חשוד',
-          color: 'text-danger-600',
-          bgColor: 'bg-danger-50',
-          border: 'border-danger-200'
+          text: "חשוד",
+          color: "text-danger-600",
+          bgColor: "bg-danger-50",
+          border: "border-danger-200",
         }
       : {
           icon: ShieldCheckIcon,
-          text: 'בטוח',
-          color: 'text-success-600',
-          bgColor: 'bg-success-50',
-          border: 'border-success-200'
+          text: "בטוח",
+          color: "text-success-600",
+          bgColor: "bg-success-50",
+          border: "border-success-200",
         };
   };
+
+  const mapHistoryItem = (item) => {
+    const suspicious = Boolean(item.textAnalysis || item.urlAnalysis);
+    return {
+      id: item._id,
+      date: item.createdAt,
+      message: item.message,
+      result: suspicious ? "suspicious" : "safe",
+      matchedWords: item.matchedWords || [],
+      extractedUrls: item.extractedUrls || [],
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20 pb-12">
@@ -66,7 +87,6 @@ export default function History() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          {/* Header */}
           <div className="text-center mb-12">
             <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 bg-blue-50 border border-blue-100">
               <ClockIcon className="w-10 h-10 text-blue-600" />
@@ -75,55 +95,60 @@ export default function History() {
               היסטוריית בדיקות
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              כאן תוכל/י לראות את ההודעות שנבדקו ותוצאת הסיווג שלהן
+              כאן אפשר לראות את כל החיפושים והבדיקות שביצעת
             </p>
           </div>
 
-          {/* History List */}
+          {error && (
+            <div className="mb-6">
+              <Alert type="error">{error}</Alert>
+            </div>
+          )}
+
           <div className="space-y-6">
             {history.length === 0 ? (
               <Card className="text-center py-12">
                 <DocumentTextIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  אין עדיין היסטוריה להצגה
+                  עדיין אין היסטוריה להצגה
                 </h3>
                 <p className="text-gray-500">
-                  לאחר בדיקה ראשונה תופיע כאן הרשומה
+                  אחרי הבדיקה הראשונה שלך היא תופיע כאן
                 </p>
               </Card>
             ) : (
-              history.map((item, index) => {
+              history.map((rawItem, index) => {
+                const item = mapHistoryItem(rawItem);
                 const config = getResultConfig(item.result);
                 const Icon = config.icon;
-                
+
                 return (
                   <motion.div
                     key={item.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.6 }}
+                    transition={{ delay: index * 0.05, duration: 0.5 }}
                   >
                     <Card>
                       <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                        {/* Date and Status */}
                         <div className="flex items-center justify-between lg:flex-col lg:items-start lg:justify-start lg:w-48 flex-shrink-0">
                           <div>
-                            <div className="text-sm text-gray-500 mb-1">
-                              תאריך
-                            </div>
+                            <div className="text-sm text-gray-500 mb-1">תאריך</div>
                             <div className="text-gray-900 font-medium">
-                              {new Date(item.date).toLocaleDateString('he-IL')}
+                              {new Date(item.date).toLocaleDateString("he-IL")}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {new Date(item.date).toLocaleTimeString('he-IL', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
+                              {new Date(item.date).toLocaleTimeString("he-IL", {
+                                hour: "2-digit",
+                                minute: "2-digit",
                               })}
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                            <div className={`p-2 rounded-full border ${config.bgColor} ${config.border}`}>
+                            <div
+                              className={`p-2 rounded-full border ${config.bgColor} ${config.border}`}
+                            >
                               <Icon className={`w-5 h-5 ${config.color}`} />
                             </div>
                             <span className={`font-medium ${config.color}`}>
@@ -132,17 +157,29 @@ export default function History() {
                           </div>
                         </div>
 
-                        {/* Message Content */}
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm text-gray-500 mb-2">
-                            תוכן ההודעה
-                          </div>
-                          <div className="text-gray-800 bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
+                          <div className="text-sm text-gray-500 mb-2">תוכן ההודעה</div>
+                          <div className="text-gray-800 bg-gray-50 p-4 rounded-lg border border-gray-200 text-right whitespace-pre-wrap break-words">
                             {item.message}
                           </div>
-                          
-                          {/* Matched Words */}
-                          {item.matchedWords && item.matchedWords.length > 0 && (
+
+                          {item.extractedUrls.length > 0 && (
+                            <div className="mt-3">
+                              <div className="text-sm text-gray-500 mb-2">קישורים שנמצאו:</div>
+                              <div className="flex flex-col gap-2">
+                                {item.extractedUrls.map((url, urlIndex) => (
+                                  <div
+                                    key={`${item.id}-url-${urlIndex}`}
+                                    className="rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 break-all"
+                                  >
+                                    {url}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {item.matchedWords.length > 0 && (
                             <div className="mt-3">
                               <div className="text-sm text-gray-500 mb-2">
                                 מילות אזהרה שזוהו:
@@ -172,4 +209,3 @@ export default function History() {
     </div>
   );
 }
-

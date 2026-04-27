@@ -1,13 +1,19 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  MagnifyingGlassIcon, 
+import axios from "axios";
+import {
+  MagnifyingGlassIcon,
   DocumentTextIcon,
   ShieldCheckIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import Button from "../../components/ui/Button";
+
+const extractUrls = (text) => {
+  const matches = text.match(/https?:\/\/[^\s]+/gi) || [];
+  return [...new Set(matches)];
+};
 
 export default function Analyze() {
   const [message, setMessage] = useState("");
@@ -21,32 +27,99 @@ export default function Analyze() {
 
     setIsAnalyzing(true);
 
-    // Simulate analysis delay
-    setTimeout(() => {
-      const suspiciousWords = [
-        "סיסמה", "לחץ כאן", "פרטי אשראי", "קישור", "אימות", "זיהוי",
-        "בהול", "נחסם", "אשר", "שלם", "עדכן", "קבל", "שלח", "מבצע",
-        "זכית", "חינם", "החזר", "אזהרה", "סכנה", "תמיכה טכנית"
-      ];
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "null");
 
-      const matchedWords = suspiciousWords.filter(word => message.includes(word));
-      const isSuspicious = matchedWords.length > 0;
-
-      setIsAnalyzing(false);
-      navigate("/result", { 
-        state: { 
-          textAnalysis: isSuspicious,
-          matchedWords,
-          originalMessage: message
-        } 
+      const textResponse = await axios.post("http://localhost:5000/api/analyze", {
+        message,
       });
-    }, 2000);
+      console.log("/api/analyze response:", textResponse.data);
+
+      const analysis = textResponse.data.analysis || {};
+      const summary = textResponse.data.summary || "";
+      const hasTextFindings = Object.keys(analysis).length > 0;
+      const extractedUrls = extractUrls(message);
+
+      let urlAnalysis = false;
+      let urlThreats = [];
+
+      if (extractedUrls.length > 0) {
+        const responses = await Promise.all(
+          extractedUrls.map((url) =>
+            axios.post("http://localhost:5000/api/links/check-safety", { url })
+          )
+        );
+
+        console.log(
+          "/api/links/check-safety responses:",
+          responses.map((response) => response.data)
+        );
+
+        urlThreats = responses
+          .map((response, index) => ({
+            url: extractedUrls[index],
+            safe: response.data.safe,
+            threats: response.data.threats || [],
+          }))
+          .filter((result) => result.safe === false);
+
+        urlAnalysis = urlThreats.length > 0;
+      }
+
+      if (user?.id) {
+        try {
+          await axios.post("http://localhost:5000/api/analyze/history", {
+            userId: user.id,
+            message,
+            analysis,
+            textAnalysis: hasTextFindings,
+            extractedUrls,
+            urlAnalysis,
+            urlThreats,
+          });
+        } catch (historyError) {
+          console.error(
+            "Failed to save history to backend:",
+            historyError.response?.data || historyError.message
+          );
+        }
+      }
+
+      navigate("/result", {
+        state: {
+          analysis,
+          summary,
+          textAnalysis: hasTextFindings,
+          urlAnalysis,
+          originalMessage: message,
+          extractedUrls,
+          urlThreats,
+        },
+      });
+    } catch (err) {
+      console.error("Analyze flow error:", err.response?.data || err.message);
+
+      navigate("/result", {
+        state: {
+          analysis: {},
+          summary: "",
+          textAnalysis: false,
+          urlAnalysis: false,
+          originalMessage: message,
+          extractedUrls: extractUrls(message),
+          urlThreats: [],
+          apiError: err.response?.data?.error || err.message,
+        },
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const exampleMessages = [
     "חשבונך עלול להיחסם, אשר פרטי תשלום כאן",
     "ברכות! זכית בהגרלה. לחץ כאן לקבלת הפרס",
-    "עדכון אבטחה נדרש - הכנס סיסמה חדשה"
+    "עדכון אבטחה נדרש - הכנס סיסמה חדשה",
   ];
 
   return (
@@ -72,7 +145,6 @@ export default function Analyze() {
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Analysis Form */}
           <div className="lg:col-span-2">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -125,9 +197,7 @@ export default function Analyze() {
             </motion.div>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Security Tips */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -137,7 +207,7 @@ export default function Analyze() {
                 <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
                   <ShieldCheckIcon className="w-6 h-6 text-green-600" />
                   <h3 className="text-lg font-semibold text-gray-900">
-                    טיפי אבטחה
+                    טיפים לאבטחה
                   </h3>
                 </div>
                 <ul className="space-y-3 text-sm text-gray-600">
@@ -157,7 +227,6 @@ export default function Analyze() {
               </div>
             </motion.div>
 
-            {/* Example Messages */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
