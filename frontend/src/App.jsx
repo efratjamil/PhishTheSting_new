@@ -5,7 +5,7 @@ import Home from "./pages/home/Home";
 import Login from "./pages/login/Login";
 import Register from "./pages/register/Register";
 import Analyze from "./pages/analyze/Analyze";
-import History from "./pages/history/History";
+import History from "./pages/history/history";
 import Profile from "./pages/profile/Profile";
 import Result from "./pages/result/Result";
 
@@ -14,9 +14,8 @@ const App = () => {
     <Router>
       <div className="min-h-screen bg-gray-50">
         {" "}
-        {/* רקע בהיר לעמודים */}
         <Navbar />
-        <div className="h-16" /> {/* <<< הרווח הקבוע מתחת ל-navbar (fixed) */}
+        <div className="h-16" />
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
