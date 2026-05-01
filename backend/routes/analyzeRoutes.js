@@ -1,13 +1,34 @@
 const express = require("express");
 const router = express.Router();
+const { authenticateToken } = require("../middleware/authMiddleware");
+const { validateRequest } = require("../middleware/validateRequest");
+const { analyzeLimiter, historyLimiter } = require("../middleware/rateLimiters");
+const {
+  analyzeMessageSchema,
+  saveHistorySchema,
+} = require("../validation/schemas");
 const {
   analyzeMessage,
   saveAnalysisHistory,
   getUserHistory,
+  getUserDashboardStats,
 } = require("../controllers/analyzeController");
 
-router.post("/", analyzeMessage);
-router.post("/history", saveAnalysisHistory);
-router.get("/history/:userId", getUserHistory);
+router.post(
+  "/",
+  analyzeLimiter,
+  authenticateToken,
+  validateRequest(analyzeMessageSchema),
+  analyzeMessage,
+);
+router.post(
+  "/history",
+  historyLimiter,
+  authenticateToken,
+  validateRequest(saveHistorySchema),
+  saveAnalysisHistory,
+);
+router.get("/dashboard", historyLimiter, authenticateToken, getUserDashboardStats);
+router.get("/history", historyLimiter, authenticateToken, getUserHistory);
 
 module.exports = router;
