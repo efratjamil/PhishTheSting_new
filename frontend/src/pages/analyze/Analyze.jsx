@@ -9,6 +9,7 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import Button from "../../components/ui/Button";
+import { getAuthHeaders, getStoredUser } from "../../utils/auth";
 
 const extractUrls = (text) => {
   const matches = text.match(/https?:\/\/[^\s]+/gi) || [];
@@ -28,11 +29,17 @@ export default function Analyze() {
     setIsAnalyzing(true);
 
     try {
-      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const user = getStoredUser();
 
-      const textResponse = await axios.post("http://localhost:5000/api/analyze", {
-        message,
-      });
+      const textResponse = await axios.post(
+        "http://localhost:5000/api/analyze",
+        {
+          message,
+        },
+        {
+          headers: getAuthHeaders(),
+        },
+      );
       console.log("/api/analyze response:", textResponse.data);
 
       const analysis = textResponse.data.analysis || {};
@@ -42,11 +49,18 @@ export default function Analyze() {
 
       let urlAnalysis = false;
       let urlThreats = [];
+      let checkedLinks = [];
 
       if (extractedUrls.length > 0) {
         const responses = await Promise.all(
           extractedUrls.map((url) =>
-            axios.post("http://localhost:5000/api/links/check-safety", { url })
+            axios.post(
+              "http://localhost:5000/api/links/check-safety",
+              { url },
+              {
+                headers: getAuthHeaders(),
+              },
+            )
           )
         );
 
@@ -55,28 +69,58 @@ export default function Analyze() {
           responses.map((response) => response.data)
         );
 
-        urlThreats = responses
+        checkedLinks = responses.map((response, index) => ({
+          url: extractedUrls[index],
+          safe: response.data.safe,
+          threats: response.data.threats || [],
+          originalUrl: response.data.originalUrl || extractedUrls[index],
+          expandedUrl: response.data.expandedUrl || extractedUrls[index],
+          redirectHops: response.data.redirectHops || [],
+          manualAnalysis: response.data.manualAnalysis
+            ? {
+                riskLevel: response.data.manualAnalysis.riskLevel || "",
+                riskScore: response.data.manualAnalysis.riskScore ?? null,
+                registrableDomain:
+                  response.data.manualAnalysis.registrableDomain || "",
+                hostname: response.data.manualAnalysis.hostname || "",
+                findings: response.data.manualAnalysis.findings || [],
+              }
+            : null,
+          googleVerdict: response.data.googleVerdict || null,
+        }));
+
+        urlThreats = checkedLinks
           .map((response, index) => ({
-            url: extractedUrls[index],
-            safe: response.data.safe,
-            threats: response.data.threats || [],
+            ...response,
           }))
           .filter((result) => result.safe === false);
 
         urlAnalysis = urlThreats.length > 0;
       }
 
+      const finalSafe = !(hasTextFindings || urlAnalysis);
+      const finalStatus = finalSafe ? "safe" : "suspicious";
+
       if (user?.id) {
         try {
-          await axios.post("http://localhost:5000/api/analyze/history", {
-            userId: user.id,
-            message,
-            analysis,
-            textAnalysis: hasTextFindings,
-            extractedUrls,
-            urlAnalysis,
-            urlThreats,
-          });
+          await axios.post(
+            "http://localhost:5000/api/analyze/history",
+            {
+              message,
+              summary,
+              analysis,
+              textAnalysis: hasTextFindings,
+              safe: finalSafe,
+              status: finalStatus,
+              extractedUrls,
+              urlAnalysis,
+              checkedLinks,
+              urlThreats,
+            },
+            {
+              headers: getAuthHeaders(),
+            }
+          );
         } catch (historyError) {
           console.error(
             "Failed to save history to backend:",
@@ -123,135 +167,136 @@ export default function Analyze() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-12"
-        >
-          <div className="flex justify-center mb-6">
-            <div className="p-4 bg-blue-50 rounded-full border border-blue-100">
-              <MagnifyingGlassIcon className="w-12 h-12 text-blue-600" />
+    <div className="min-h-[calc(100vh-64px)] bg-gray-50 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-88px)] max-w-5xl items-center">
+        <div className="w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="mb-6 text-center"
+          >
+            <div className="mb-3 flex justify-center">
+              <div className="rounded-full border border-blue-100 bg-blue-50 p-2.5">
+                <MagnifyingGlassIcon className="h-8 w-8 text-blue-600" />
+              </div>
             </div>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            נתח הודעה חשודה
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            הדבק את ההודעה שקיבלת ונבדוק אם היא מכילה סימנים של הונאת פישינג
-          </p>
-        </motion.div>
+            <h1 className="mb-2 text-2xl font-bold text-gray-900 md:text-3xl">
+              נתח הודעה חשודה
+            </h1>
+            <p className="mx-auto max-w-2xl text-base text-gray-600 md:text-lg">
+              הדבק את ההודעה שקיבלת ונבדוק אם היא מכילה סימנים של הונאת פישינג
+            </p>
+          </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-            >
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-                <div className="flex items-center space-x-3 rtl:space-x-reverse mb-6">
-                  <DocumentTextIcon className="w-6 h-6 text-blue-600" />
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    הדבק את ההודעה כאן
-                  </h2>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <textarea
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="הדבק כאן את ההודעה שקיבלת (אימייל, SMS, WhatsApp וכו')..."
-                      className="w-full h-40 px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 resize-none"
-                      dir="rtl"
-                    />
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-sm text-gray-500">
-                        {message.length} תווים
-                      </span>
-                      {message.length > 0 && (
-                        <button
-                          onClick={() => setMessage("")}
-                          className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                        >
-                          נקה
-                        </button>
-                      )}
-                    </div>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.95fr)]">
+            <div>
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2, duration: 0.8 }}
+              >
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-lg lg:p-6">
+                  <div className="mb-4 flex items-center space-x-3 rtl:space-x-reverse">
+                    <DocumentTextIcon className="h-6 w-6 text-blue-600" />
+                    <h2 className="text-lg font-semibold text-gray-900 lg:text-xl">
+                      הדבק את ההודעה כאן
+                    </h2>
                   </div>
 
-                  <Button
-                    onClick={handleAnalyze}
-                    disabled={!message.trim() || isAnalyzing}
-                    loading={isAnalyzing}
-                    size="lg"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    {isAnalyzing ? "מנתח..." : "נתח הודעה"}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+                  <div className="space-y-4">
+                    <div>
+                      <textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="הדבק כאן את ההודעה שקיבלת (אימייל, SMS, WhatsApp וכו')..."
+                        className="h-28 w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 transition-colors duration-200 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 md:h-32"
+                        dir="rtl"
+                      />
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-sm text-gray-500">
+                          {message.length} תווים
+                        </span>
+                        {message.length > 0 && (
+                          <button
+                            onClick={() => setMessage("")}
+                            className="text-sm text-gray-500 transition-colors hover:text-gray-700"
+                          >
+                            נקה
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-          <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-            >
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
-                  <ShieldCheckIcon className="w-6 h-6 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    טיפים לאבטחה
-                  </h3>
-                </div>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li className="flex items-start space-x-2 rtl:space-x-reverse">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-                    <span>בדוק את כתובת השולח</span>
-                  </li>
-                  <li className="flex items-start space-x-2 rtl:space-x-reverse">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-                    <span>אל תלחץ על קישורים חשודים</span>
-                  </li>
-                  <li className="flex items-start space-x-2 rtl:space-x-reverse">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-                    <span>אמת מידע דרך ערוצים רשמיים</span>
-                  </li>
-                </ul>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6, duration: 0.8 }}
-            >
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
-                  <ExclamationTriangleIcon className="w-6 h-6 text-orange-500" />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    דוגמאות להודעות חשודות
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  {exampleMessages.map((example, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setMessage(example)}
-                      className="w-full text-right p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm text-gray-700 hover:text-gray-900 transition-colors duration-200 border border-gray-200 hover:border-gray-300"
+                    <Button
+                      onClick={handleAnalyze}
+                      disabled={!message.trim() || isAnalyzing}
+                      loading={isAnalyzing}
+                      size="lg"
+                      className="w-full rounded-xl bg-blue-600 py-2.5 font-semibold text-white shadow-lg transition-all duration-200 hover:bg-blue-700 hover:shadow-xl"
                     >
-                      {example}
-                    </button>
-                  ))}
+                      {isAnalyzing ? "מנתח..." : "נתח הודעה"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
+
+            <div>
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4, duration: 0.8 }}
+              >
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
+                  <div className="mb-5 flex items-center space-x-3 rtl:space-x-reverse">
+                    <ShieldCheckIcon className="h-6 w-6 text-green-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      טיפים ודוגמאות
+                    </h3>
+                  </div>
+
+                  <div className="mb-5">
+                    <h4 className="mb-3 flex items-center justify-between text-sm font-semibold text-gray-800">
+                      <span>טיפים לאבטחה</span>
+                      <ShieldCheckIcon className="h-5 w-5 text-green-600" />
+                    </h4>
+                    <ul className="space-y-2.5 text-sm text-gray-600">
+                      <li className="flex items-start space-x-2 rtl:space-x-reverse">
+                        <span className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-green-500"></span>
+                        <span>בדוק את כתובת השולח</span>
+                      </li>
+                      <li className="flex items-start space-x-2 rtl:space-x-reverse">
+                        <span className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-green-500"></span>
+                        <span>אל תלחץ על קישורים חשודים</span>
+                      </li>
+                      <li className="flex items-start space-x-2 rtl:space-x-reverse">
+                        <span className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-green-500"></span>
+                        <span>אמת מידע דרך ערוצים רשמיים</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="mb-3 flex items-center justify-between text-sm font-semibold text-gray-800">
+                      <span>דוגמאות להודעות חשודות</span>
+                      <ExclamationTriangleIcon className="h-5 w-5 text-orange-500" />
+                    </h4>
+                    <div className="space-y-2">
+                      {exampleMessages.map((example, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setMessage(example)}
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-right text-sm text-gray-700 transition-colors duration-200 hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900"
+                        >
+                          {example}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </div>
       </div>

@@ -9,6 +9,19 @@ export const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
+export const getPasswordValidationState = (password = "") => {
+  const value = String(password);
+
+  return {
+    minLength: value.length >= 8,
+    uppercase: /[A-Z]/.test(value),
+    number: /\d/.test(value),
+    special: /[^A-Za-z0-9]/.test(value),
+  };
+};
+
 export const isStrongPassword = (password) => {
-  return password.length >= 6;
+  const checks = getPasswordValidationState(password);
+
+  return Object.values(checks).every(Boolean);
 };

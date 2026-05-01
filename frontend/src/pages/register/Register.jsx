@@ -10,6 +10,7 @@ import {
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
+import PasswordRequirements from "../../components/ui/PasswordRequirements";
 import {
   isEmptyField,
   isValidEmail,
@@ -44,7 +45,7 @@ export default function Register() {
       newErrors.email = "כתובת אימייל לא תקינה";
     if (isEmptyField(formData.password)) newErrors.password = "סיסמה נדרשת";
     else if (!isStrongPassword(formData.password))
-      newErrors.password = "הסיסמה צריכה להכיל לפחות 6 תווים";
+      newErrors.password = "הסיסמה חייבת לכלול 8 תווים, אות גדולה, מספר ותו מיוחד";
     return newErrors;
   };
 
@@ -202,6 +203,7 @@ export default function Register() {
                 )}
               </button>
             </div>
+            <PasswordRequirements password={formData.password} />
 
             {/* כפתור הגשה בצבע מותג */}
             <Button

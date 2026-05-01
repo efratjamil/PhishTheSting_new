@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  UserCircleIcon, 
-  Bars3Icon, 
+import { clearAuthSession, getStoredUser } from "../../utils/auth";
+import {
+  UserCircleIcon,
+  Bars3Icon,
   XMarkIcon,
-  ShieldCheckIcon,
   ClockIcon,
-  ArrowRightOnRectangleIcon
-} from '@heroicons/react/24/outline';
+  ArrowRightOnRectangleIcon,
+} from "@heroicons/react/24/outline";
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
@@ -18,35 +18,33 @@ const Navbar = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      setUser(null);
-    }
+    setUser(getStoredUser());
     setIsMenuOpen(false);
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
+    clearAuthSession();
     setUser(null);
     setIsMenuOpen(false);
     navigate("/");
   };
 
   const menuItems = [
-    { 
-      label: "אזור אישי", 
-      path: "/profile", 
-      icon: UserCircleIcon 
+    {
+      label: "אזור אישי",
+      path: "/profile",
+      icon: UserCircleIcon,
     },
-    { 
-      label: "היסטוריית חיפושים", 
-      path: "/history", 
-      icon: ClockIcon 
+    {
+      label: "היסטוריית חיפושים",
+      path: "/history",
+      icon: ClockIcon,
     },
   ];
+
+  const showUserNavigation =
+    user && !["/", "/login", "/register"].includes(location.pathname);
 
   return (
     <motion.nav
@@ -56,7 +54,6 @@ const Navbar = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
           <Link
             to={user ? "/analyze" : "/"}
             className="flex items-center space-x-3 rtl:space-x-reverse group"
@@ -75,8 +72,7 @@ const Navbar = () => {
             </motion.span>
           </Link>
 
-          {/* Desktop Menu */}
-          {user && !["/", "/login", "/register"].includes(location.pathname) && (
+          {showUserNavigation && (
             <div className="hidden md:block">
               <div className="relative">
                 <motion.button
@@ -135,8 +131,7 @@ const Navbar = () => {
             </div>
           )}
 
-          {/* Mobile Menu Button */}
-          {user && !["/", "/login", "/register"].includes(location.pathname) && (
+          {showUserNavigation && (
             <div className="md:hidden">
               <motion.button
                 whileTap={{ scale: 0.95 }}
@@ -153,9 +148,8 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Mobile Menu */}
         <AnimatePresence>
-          {isMobileMenuOpen && (
+          {isMobileMenuOpen && showUserNavigation && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}

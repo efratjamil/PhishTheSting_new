@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ClockIcon,
   ShieldCheckIcon,
@@ -10,15 +10,69 @@ import {
 } from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
 import Alert from "../../components/ui/Alert";
+import {
+  clearAuthSession,
+  getAuthHeaders,
+  getStoredUser,
+} from "../../utils/auth";
 
 export default function History() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedLinks, setExpandedLinks] = useState({});
   const navigate = useNavigate();
 
+  const shortenerHosts = new Set([
+    "bit.ly",
+    "t.co",
+    "tinyurl.com",
+    "goo.gl",
+    "ow.ly",
+    "buff.ly",
+    "rebrand.ly",
+    "cutt.ly",
+    "is.gd",
+    "tiny.cc",
+  ]);
+
+  const getHostname = (value) => {
+    try {
+      return new URL(value).hostname.toLowerCase();
+    } catch {
+      return "";
+    }
+  };
+
+  const isShortenedUrl = (value) => shortenerHosts.has(getHostname(value));
+
+  const extractBrandImpersonation = (findings = []) => {
+    for (const finding of findings) {
+      const tokenMatch = finding.match(/שם המותג "([^"]+)".*הדומיין הרשום הוא "([^"]+)"/);
+      if (tokenMatch) {
+        return {
+          brand: tokenMatch[1],
+          domain: tokenMatch[2],
+        };
+      }
+
+      const similarMatch = finding.match(/הדומיין הרשום "([^"]+)".*למותג "([^"]+)"/);
+      if (similarMatch) {
+        return {
+          brand: similarMatch[2],
+          domain: similarMatch[1],
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const formatBrandName = (brand = "") =>
+    brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : "";
+
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "null");
+    const user = getStoredUser();
 
     if (!user?.id) {
       navigate("/login");
@@ -28,10 +82,19 @@ export default function History() {
     const fetchHistory = async () => {
       try {
         const { data } = await axios.get(
-          `http://localhost:5000/api/analyze/history/${user.id}`
+          "http://localhost:5000/api/analyze/history",
+          {
+            headers: getAuthHeaders(),
+          }
         );
         setHistory(data.items || []);
       } catch (err) {
+        if (err.response?.status === 401) {
+          clearAuthSession();
+          navigate("/login");
+          return;
+        }
+
         setError(err.response?.data?.error || "שגיאה בטעינת ההיסטוריה");
       } finally {
         setLoading(false);
@@ -61,14 +124,39 @@ export default function History() {
 
   const mapHistoryItem = (item) => {
     const suspicious = Boolean(item.textAnalysis || item.urlAnalysis);
+    const checkedLinks = Array.isArray(item.checkedLinks)
+      ? item.checkedLinks
+      : Array.isArray(item.urlThreats)
+        ? item.urlThreats.map((link) => ({
+            url: link.url,
+            safe: typeof link.safe === "boolean" ? link.safe : false,
+            threats: link.threats || [],
+            originalUrl: link.originalUrl || link.url,
+            expandedUrl: link.expandedUrl || link.url,
+            redirectHops: link.redirectHops || [],
+            manualAnalysis: link.manualAnalysis || null,
+            googleVerdict: link.googleVerdict || null,
+          }))
+        : [];
+
     return {
       id: item._id,
       date: item.createdAt,
       message: item.message,
+      summary: item.summary || "",
       result: suspicious ? "suspicious" : "safe",
       matchedWords: item.matchedWords || [],
       extractedUrls: item.extractedUrls || [],
+      checkedLinks,
     };
+  };
+
+  const toggleLinkDetails = (historyId, url) => {
+    const key = `${historyId}-${url}`;
+    setExpandedLinks((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
   };
 
   if (loading) {
@@ -193,6 +281,163 @@ export default function History() {
                                     {word}
                                   </span>
                                 ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {item.checkedLinks.length > 0 && (
+                            <div className="mt-4">
+                              <div className="mb-2 text-sm text-gray-500">
+                                קישורים שנבדקו:
+                              </div>
+                              <div className="space-y-2">
+                                {item.checkedLinks.map((link, linkIndex) => {
+                                  const detailKey = `${item.id}-${link.url}-${linkIndex}`;
+                                  const isExpanded = Boolean(expandedLinks[detailKey]);
+                                  const impersonation = extractBrandImpersonation(
+                                    link.manualAnalysis?.findings || [],
+                                  );
+                                  const shortReason = impersonation
+                                    ? "חשד להתחזות למותג"
+                                    : isShortenedUrl(link.originalUrl || link.url)
+                                      ? "קישור מקוצר זוהה"
+                                      : link.manualAnalysis?.registrableDomain
+                                        ? `דומיין אמיתי: ${link.manualAnalysis.registrableDomain}`
+                                        : link.safe
+                                          ? "הקישור נבדק ולא זוהה כאיום"
+                                          : "הקישור סומן כחשוד";
+
+                                  return (
+                                    <div
+                                      key={detailKey}
+                                      className="rounded-lg border border-gray-200 bg-white px-3 py-3"
+                                    >
+                                      <div className="flex flex-col gap-2">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0 flex-1">
+                                            <div className="break-all text-sm text-gray-800">
+                                              {link.originalUrl || link.url}
+                                            </div>
+                                            {link.expandedUrl &&
+                                              link.expandedUrl !== link.originalUrl && (
+                                                <div className="mt-1 break-all text-xs text-gray-600">
+                                                  היעד שנחשף: {link.expandedUrl}
+                                                </div>
+                                              )}
+                                            <div
+                                              className={`mt-1 text-xs ${
+                                                link.safe
+                                                  ? "text-success-600"
+                                                  : "text-danger-600"
+                                              }`}
+                                            >
+                                              {shortReason}
+                                            </div>
+                                            {!link.safe && impersonation && (
+                                              <div className="mt-1 text-xs text-danger-700">
+                                                התחזות ל־{formatBrandName(impersonation.brand)}{" "}
+                                                (דומיין אמיתי: {impersonation.domain})
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          <span
+                                            className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${
+                                              link.safe
+                                                ? "border-success-200 bg-success-50 text-success-600"
+                                                : "border-danger-200 bg-danger-50 text-danger-600"
+                                            }`}
+                                          >
+                                            {link.safe ? "תקין" : "חשוד"}
+                                          </span>
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            toggleLinkDetails(item.id, `${link.url}-${linkIndex}`)
+                                          }
+                                          className="w-fit text-xs font-medium text-blue-600 transition-colors hover:text-blue-700"
+                                        >
+                                          {isExpanded ? "הסתר פרטים" : "פרטים נוספים"}
+                                        </button>
+
+                                        <AnimatePresence initial={false}>
+                                          {isExpanded && (
+                                            <motion.div
+                                              initial={{ height: 0, opacity: 0 }}
+                                              animate={{ height: "auto", opacity: 1 }}
+                                              exit={{ height: 0, opacity: 0 }}
+                                              transition={{ duration: 0.25, ease: "easeOut" }}
+                                              className="overflow-hidden"
+                                            >
+                                              <div className="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+                                                <div className="space-y-3 text-xs text-gray-700">
+                                                  {!!(link.manualAnalysis?.findings || []).length && (
+                                                    <div>
+                                                      <p className="mb-1 font-semibold">
+                                                        סיבות לזיהוי
+                                                      </p>
+                                                      <ul className="list-disc space-y-1 pr-4">
+                                                        {link.manualAnalysis.findings.map(
+                                                          (finding, findingIndex) => (
+                                                            <li
+                                                              key={`${detailKey}-finding-${findingIndex}`}
+                                                            >
+                                                              {finding}
+                                                            </li>
+                                                          ),
+                                                        )}
+                                                      </ul>
+                                                    </div>
+                                                  )}
+
+                                                  {!!(link.threats || []).length && (
+                                                    <div>
+                                                      <p className="mb-1 font-semibold">איומים</p>
+                                                      <ul className="list-disc space-y-1 pr-4">
+                                                        {link.threats.map((threat, threatIndex) => (
+                                                          <li
+                                                            key={`${detailKey}-threat-${threatIndex}`}
+                                                          >
+                                                            {threat}
+                                                          </li>
+                                                        ))}
+                                                      </ul>
+                                                    </div>
+                                                  )}
+
+                                                  <div>
+                                                    <p className="mb-1 font-semibold">
+                                                      Google Safe Browsing
+                                                    </p>
+                                                    <p>
+                                                      {link.googleVerdict?.safe === false
+                                                        ? "זוהה איום בשירות"
+                                                        : "לא זוהה איום בשירות"}
+                                                    </p>
+                                                  </div>
+
+                                                  {link.expandedUrl &&
+                                                    link.expandedUrl !== link.originalUrl && (
+                                                      <div>
+                                                        <p className="mb-1 font-semibold">
+                                                          קישור סופי
+                                                        </p>
+                                                        <p className="break-all">
+                                                          {link.expandedUrl}
+                                                        </p>
+                                                      </div>
+                                                    )}
+                                                </div>
+                                              </div>
+                                            </motion.div>
+                                          )}
+                                        </AnimatePresence>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}

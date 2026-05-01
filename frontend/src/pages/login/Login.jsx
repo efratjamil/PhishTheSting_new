@@ -6,6 +6,7 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
+import { storeAuthSession } from "../../utils/auth";
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -16,20 +17,21 @@ export default function Login() {
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    if (error) setError(null);
+    if (error) {
+      setError(null);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
-      const { data } = await axios.post(
-        "http://localhost:5000/login",
-        formData
-      );
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
+      const { data } = await axios.post("http://localhost:5000/login", formData);
+
+      if (data.user && data.token) {
+        storeAuthSession({ user: data.user, token: data.token });
         navigate("/analyze");
       }
     } catch (err) {
@@ -40,18 +42,14 @@ export default function Login() {
   };
 
   return (
-    // Keep the card fully within the viewport below the fixed navbar (h-16 = 64px)
     <div className="min-h-[60vh] bg-gray-50 flex items-center justify-center px-4 pt-8 md:pt-12 pb-8">
-      {/* קונטיינר צר ונקי */}
       <div dir="rtl" className="w-full max-w-sm">
-        {" "}
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200/70 p-4 -mt-8"
         >
-          {/* לוגו + כותרת */}
           <div className="text-center mb-8">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -74,9 +72,7 @@ export default function Login() {
             </div>
           )}
 
-          {/* טופס */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* אימייל */}
             <Input
               label="כתובת אימייל"
               name="email"
@@ -84,15 +80,11 @@ export default function Login() {
               value={formData.email}
               onChange={handleChange}
               required
-              // אימייל ל-LTR כדי שהטקסט ייושר נכון בשדה
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white
-                         focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2]
-                         transition-colors duration-200"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2] transition-colors duration-200"
               inputProps={{ dir: "ltr" }}
               placeholder="your@email.com"
             />
 
-            {/* סיסמה + אייקון הצגה/הסתרה ממורכז אנכית */}
             <div className="relative">
               <Input
                 label="סיסמה"
@@ -101,14 +93,12 @@ export default function Login() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2]
-                           transition-colors duration-200 pr-12"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2] transition-colors duration-200 pr-12"
                 placeholder="••••••••"
               />
               <button
                 type="button"
-                onClick={() => setShowPassword((v) => !v)}
+                onClick={() => setShowPassword((value) => !value)}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label={showPassword ? "הסתר סיסמה" : "הצג סיסמה"}
               >
@@ -120,21 +110,26 @@ export default function Login() {
               </button>
             </div>
 
-            {/* כפתור שליחה בצבע המותג */}
+            <div className="text-left">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-medium text-[#449ba2] hover:text-[#337e84] transition-colors"
+              >
+                שכחתי סיסמה
+              </Link>
+            </div>
+
             <Button
               type="submit"
               size="lg"
               loading={loading}
               disabled={!formData.email || !formData.password || loading}
-              className="w-full bg-[#449ba2] hover:bg-[#337e84] text-white py-3 rounded-xl
-                         font-semibold shadow-lg hover:shadow-xl transition-all duration-200
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#449ba2] hover:bg-[#337e84] text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "מתחבר..." : "התחבר בבטחה"}
             </Button>
           </form>
 
-          {/* לינק לרישום */}
           <div className="mt-8 text-center">
             <p className="text-gray-600">
               אין לך חשבון?{" "}

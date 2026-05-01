@@ -7,11 +7,23 @@ import {
   KeyIcon,
   EyeIcon,
   EyeSlashIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  ShieldCheckIcon,
+  LinkIcon,
 } from "@heroicons/react/24/outline";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
 import Card from "../../components/ui/Card";
+import PasswordRequirements from "../../components/ui/PasswordRequirements";
+import {
+  clearAuthSession,
+  getAuthHeaders,
+  getStoredUser,
+  storeAuthSession,
+} from "../../utils/auth";
+import { isStrongPassword } from "../../utils/validation";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -27,6 +39,13 @@ export default function Profile() {
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalScans: 0,
+    suspiciousScans: 0,
+    safeScans: 0,
+    totalCheckedLinks: 0,
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -36,9 +55,8 @@ export default function Profile() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const u = JSON.parse(storedUser);
+    const u = getStoredUser();
+    if (u) {
       setUser(u);
       setProfileData({
         firstName: u.firstName,
@@ -50,6 +68,72 @@ export default function Profile() {
     }
     setLoading(false);
   }, [navigate]);
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:5000/api/analyze/dashboard",
+          {
+            headers: getAuthHeaders(),
+          }
+        );
+
+        setDashboardStats({
+          totalScans: response.data?.stats?.totalScans || 0,
+          suspiciousScans: response.data?.stats?.suspiciousScans || 0,
+          safeScans: response.data?.stats?.safeScans || 0,
+          totalCheckedLinks: response.data?.stats?.totalCheckedLinks || 0,
+        });
+      } catch (err) {
+        if (err.response?.status === 401) {
+          clearAuthSession();
+          navigate("/login");
+          return;
+        }
+
+        console.error(
+          "Failed to fetch dashboard stats:",
+          err.response?.data || err.message
+        );
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    if (getStoredUser()?.id) {
+      fetchDashboardStats();
+    } else {
+      setStatsLoading(false);
+    }
+  }, [navigate]);
+
+  const statCards = [
+    {
+      label: "הודעות שנבדקו",
+      value: dashboardStats.totalScans,
+      icon: DocumentTextIcon,
+      tone: "text-blue-600 bg-blue-50 border-blue-100",
+    },
+    {
+      label: "הודעות חשודות",
+      value: dashboardStats.suspiciousScans,
+      icon: ExclamationTriangleIcon,
+      tone: "text-danger-600 bg-danger-50 border-danger-100",
+    },
+    {
+      label: "הודעות תקינות",
+      value: dashboardStats.safeScans,
+      icon: ShieldCheckIcon,
+      tone: "text-success-600 bg-success-50 border-success-100",
+    },
+    {
+      label: "קישורים שנבדקו",
+      value: dashboardStats.totalCheckedLinks,
+      icon: LinkIcon,
+      tone: "text-amber-600 bg-amber-50 border-amber-100",
+    },
+  ];
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
@@ -66,8 +150,8 @@ export default function Profile() {
     const newErrors = {};
     if (!passwordData.newPassword)
       newErrors.newPassword = "יש להזין סיסמה חדשה";
-    else if (passwordData.newPassword.length < 6)
-      newErrors.newPassword = "הסיסמה חייבת להכיל לפחות 6 תווים";
+    else if (!isStrongPassword(passwordData.newPassword))
+      newErrors.newPassword = "הסיסמה חייבת לכלול 8 תווים, אות גדולה, מספר ותו מיוחד";
     if (!passwordData.confirmPassword)
       newErrors.confirmPassword = "יש להזין אימות סיסמה";
     else if (passwordData.newPassword !== passwordData.confirmPassword)
@@ -90,13 +174,21 @@ export default function Profile() {
       const response = await axios.post(
         "http://localhost:5000/api/auth/update-password",
         {
-          email: user.email,
           newPassword: passwordData.newPassword,
+        },
+        {
+          headers: getAuthHeaders(),
         }
       );
       setSuccess(response.data.message || "הסיסמה עודכנה בהצלחה");
       setPasswordData({ newPassword: "", confirmPassword: "" });
     } catch (err) {
+      if (err.response?.status === 401) {
+        clearAuthSession();
+        navigate("/login");
+        return;
+      }
+
       setErrors({
         general: err.response?.data?.message || "אירעה שגיאה בעדכון הסיסמה",
       });
@@ -117,14 +209,16 @@ export default function Profile() {
       const response = await axios.post(
         "http://localhost:5000/api/auth/update-profile",
         {
-          id: user.id,
           firstName: profileData.firstName,
           lastName: profileData.lastName,
           email: profileData.email,
+        },
+        {
+          headers: getAuthHeaders(),
         }
       );
       const updated = response.data.user;
-      localStorage.setItem("user", JSON.stringify(updated));
+      storeAuthSession({ user: updated });
       setUser(updated);
       setProfileData({
         firstName: updated.firstName,
@@ -134,6 +228,12 @@ export default function Profile() {
       setSuccess("הפרטים עודכנו בהצלחה");
       setIsEditing(false);
     } catch (err) {
+      if (err.response?.status === 401) {
+        clearAuthSession();
+        navigate("/login");
+        return;
+      }
+
       setErrors({
         general: err.response?.data?.message || "אירעה שגיאה בעדכון הפרטים",
       });
@@ -169,6 +269,50 @@ export default function Profile() {
           </div>
 
           <div className="space-y-8">
+            <Card>
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  דשבורד אישי
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  סיכום קצר של הבדיקות שביצעת במערכת
+                </p>
+              </div>
+
+              {statsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-blue-500"></div>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {statCards.map((card) => {
+                    const Icon = card.icon;
+
+                    return (
+                      <div
+                        key={card.label}
+                        className="rounded-2xl border border-gray-200 bg-gray-50 p-5"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm text-gray-500">{card.label}</p>
+                            <p className="mt-2 text-3xl font-bold text-gray-900">
+                              {card.value}
+                            </p>
+                          </div>
+                          <div
+                            className={`rounded-full border p-3 ${card.tone}`}
+                          >
+                            <Icon className="h-5 w-5" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+
             <Card>
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center space-x-3 rtl:space-x-reverse">
                 <UserCircleIcon className="w-6 h-6 text-blue-600" />
@@ -312,6 +456,7 @@ export default function Profile() {
                     )}
                   </button>
                 </div>
+                <PasswordRequirements password={passwordData.newPassword} />
                 <div className="relative">
                   <Input
                     label="אימות סיסמה"
