@@ -1,5 +1,6 @@
 const { scanLink } = require("../services/linkService");
 const { checkUrlSafety } = require("../services/googleSafeBrowsing");
+const { checkUrlWithLayers } = require("../src/utils/urlAnalyzer");
 
 async function postScanLink(req, res, next) {
   try {
@@ -23,8 +24,66 @@ async function postCheckUrlSafety(req, res, next) {
       return res.status(400).json({ ok: false, error: "url is required" });
     }
 
-    const result = await checkUrlSafety(url);
-    return res.json({ safe: result.safe, threats: result.threats || [] });
+    console.log("/api/links/check-safety before manual analysis:", { url });
+
+    const result = await checkUrlWithLayers(url, async (urlsToCheck) => {
+      console.log("/api/links/check-safety before Google Safe Browsing:", urlsToCheck);
+
+      const uniqueUrls = [...new Set(urlsToCheck.filter(Boolean))];
+      const verdicts = await Promise.all(uniqueUrls.map((item) => checkUrlSafety(item)));
+      const unsafeVerdicts = verdicts.filter((item) => item.safe === false);
+
+      return {
+        safe: unsafeVerdicts.length === 0,
+        threats: [...new Set(unsafeVerdicts.flatMap((item) => item.threats || []))],
+        checks: verdicts,
+      };
+    });
+
+    console.log("/api/links/check-safety after manual analysis:", {
+      expandedUrl: result.expandedUrl,
+      manualAnalysis: result.manualAnalysis,
+    });
+
+    const manualRiskLevel = result.manualAnalysis?.riskLevel || "low";
+    const manualThreatTag =
+      manualRiskLevel === "high"
+        ? ["MANUAL_HIGH_RISK"]
+        : manualRiskLevel === "medium"
+          ? ["MANUAL_MEDIUM_RISK"]
+          : [];
+
+    const threats = [
+      ...new Set([...(result.googleVerdict?.threats || []), ...manualThreatTag]),
+    ];
+    const safe = Boolean(result.googleVerdict?.safe) && manualRiskLevel === "low";
+
+    console.log("/api/links/check-safety layered result:", {
+      originalUrl: result.originalUrl,
+      expandedUrl: result.expandedUrl,
+      redirectHops: result.redirectHops,
+      manualRiskLevel,
+      manualRiskScore: result.manualAnalysis?.riskScore,
+      googleSafe: result.googleVerdict?.safe,
+      threats,
+      safe,
+    });
+
+    console.log("/api/links/check-safety before res.json:", {
+      safe,
+      threats,
+      expandedUrl: result.expandedUrl,
+    });
+
+    return res.json({
+      safe,
+      threats,
+      originalUrl: result.originalUrl,
+      expandedUrl: result.expandedUrl,
+      redirectHops: result.redirectHops,
+      manualAnalysis: result.manualAnalysis,
+      googleVerdict: result.googleVerdict,
+    });
   } catch (err) {
     const statusCode = err.statusCode || 500;
     return res.status(statusCode).json({
