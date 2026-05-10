@@ -24,7 +24,7 @@ function authenticateToken(req, res, next) {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || "dev-jwt-secret-change-me"
+      process.env.JWT_SECRET
     );
 
     req.user = decoded;

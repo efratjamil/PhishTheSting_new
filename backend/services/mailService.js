@@ -7,7 +7,6 @@ function getFrontendBaseUrl() {
 async function sendPasswordResetEmail({ email, resetLink, firstName }) {
   console.log("sendPasswordResetEmail: preparing password reset email", {
     email,
-    resetLink,
   });
 
   const subject = "קישור לאיפוס סיסמה";
@@ -47,7 +46,6 @@ ${resetLink}
       "sendPasswordResetEmail: SMTP not configured, using development fallback",
       {
         email,
-        resetLink,
       },
     );
 

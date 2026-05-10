@@ -16,13 +16,17 @@ function buildUserPayload(user) {
   };
 }
 
+function respondWithServerError(res) {
+  return res.status(500).json({ message: "Something went wrong" });
+}
+
 function signAuthToken(user) {
   return jwt.sign(
     {
       userId: String(user._id),
       email: user.email,
     },
-    process.env.JWT_SECRET || "dev-jwt-secret-change-me",
+    process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
 }
@@ -54,7 +58,7 @@ exports.register = async (req, res) => {
     return res.status(201).json({ message: "Registered successfully" });
   } catch (err) {
     console.error("register error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return respondWithServerError(res);
   }
 };
 
@@ -76,7 +80,7 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     console.error("login error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return respondWithServerError(res);
   }
 };
 
@@ -96,7 +100,7 @@ exports.getCurrentUser = async (req, res) => {
     });
   } catch (err) {
     console.error("getCurrentUser error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return respondWithServerError(res);
   }
 };
 
@@ -106,10 +110,6 @@ exports.updatePassword = async (req, res) => {
 
     if (!req.user?.userId) {
       return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    if (!newPassword || String(newPassword).length < 6) {
-      return res.status(400).json({ message: "New password must be at least 6 characters" });
     }
 
     const user = await User.findById(req.user.userId);
@@ -123,7 +123,7 @@ exports.updatePassword = async (req, res) => {
     return res.status(200).json({ message: "Password updated successfully" });
   } catch (err) {
     console.error("updatePassword error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return respondWithServerError(res);
   }
 };
 
@@ -165,7 +165,7 @@ exports.updateProfile = async (req, res) => {
     });
   } catch (err) {
     console.error("updateProfile error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return respondWithServerError(res);
   }
 };
 
@@ -193,11 +193,6 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     const resetLink = `${getFrontendBaseUrl()}/reset-password?token=${rawToken}`;
-    console.log("forgotPassword: generated reset link", {
-      email: user.email,
-      resetLink,
-    });
-
     const mailResult = await sendPasswordResetEmail({
       email: user.email,
       firstName: user.firstName,
@@ -213,11 +208,13 @@ exports.forgotPassword = async (req, res) => {
 
     return res.status(200).json({
       message: successMessage,
-      ...(mailResult.fallback ? { resetLink } : {}),
+      ...(mailResult.fallback && process.env.NODE_ENV === "development"
+        ? { resetLink }
+        : {}),
     });
   } catch (err) {
     console.error("forgotPassword error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return respondWithServerError(res);
   }
 };
 
@@ -243,6 +240,6 @@ exports.resetPasswordWithToken = async (req, res) => {
     return res.status(200).json({ message: "Password updated successfully" });
   } catch (err) {
     console.error("resetPasswordWithToken error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return respondWithServerError(res);
   }
 };
