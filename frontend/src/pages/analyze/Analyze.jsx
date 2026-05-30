@@ -12,8 +12,16 @@ import Button from "../../components/ui/Button";
 import { getAuthHeaders, getStoredUser } from "../../utils/auth";
 
 const extractUrls = (text) => {
-  const matches = text.match(/https?:\/\/[^\s]+/gi) || [];
-  return [...new Set(matches)];
+  const matches =
+    text.match(
+      /\b(?:https?:\/\/)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi
+    ) || [];
+
+  const normalizedUrls = matches.map((url) =>
+    /^https?:\/\//i.test(url) ? url : `https://${url}`
+  );
+
+  return [...new Set(normalizedUrls)];
 };
 
 export default function Analyze() {

@@ -41,7 +41,9 @@ async function postCheckUrlSafety(req, res, next) {
     });
 
     console.log("/api/links/check-safety after manual analysis:", {
+      originalManualAnalysis: result.originalManualAnalysis,
       expandedUrl: result.expandedUrl,
+      expandedManualAnalysis: result.expandedManualAnalysis,
       manualAnalysis: result.manualAnalysis,
     });
 
@@ -81,6 +83,8 @@ async function postCheckUrlSafety(req, res, next) {
       originalUrl: result.originalUrl,
       expandedUrl: result.expandedUrl,
       redirectHops: result.redirectHops,
+      originalManualAnalysis: result.originalManualAnalysis,
+      expandedManualAnalysis: result.expandedManualAnalysis,
       manualAnalysis: result.manualAnalysis,
       googleVerdict: result.googleVerdict,
     });

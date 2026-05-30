@@ -7,6 +7,7 @@ import {
   ShieldCheckIcon,
   ExclamationTriangleIcon,
   DocumentTextIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
 import Alert from "../../components/ui/Alert";
@@ -21,6 +22,8 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedLinks, setExpandedLinks] = useState({});
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState(null);
   const navigate = useNavigate();
 
   const shortenerHosts = new Set([
@@ -159,6 +162,35 @@ export default function History() {
     }));
   };
 
+  const handleDeleteItem = async (historyId) => {
+    setDeletingId(historyId);
+    setError(null);
+
+    try {
+      await axios.delete(`http://localhost:5000/api/analyze/history/${historyId}`, {
+        headers: getAuthHeaders(),
+      });
+
+      setHistory((current) => current.filter((item) => item._id !== historyId));
+      setExpandedLinks((current) =>
+        Object.fromEntries(
+          Object.entries(current).filter(([key]) => !key.startsWith(`${historyId}-`)),
+        ),
+      );
+    } catch (err) {
+      if (err.response?.status === 401) {
+        clearAuthSession();
+        navigate("/login");
+        return;
+      }
+
+      setError(err.response?.data?.error || "שגיאה במחיקת ההודעה");
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteItem(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -243,6 +275,16 @@ export default function History() {
                               {config.text}
                             </span>
                           </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteItem(item)}
+                            disabled={deletingId === item.id}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <TrashIcon className="h-4 w-4 text-black" />
+                            {deletingId === item.id ? "מוחק..." : "מחק"}
+                          </button>
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -451,6 +493,54 @@ export default function History() {
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {confirmDeleteItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+              dir="rtl"
+            >
+              <h3 className="mb-3 text-xl font-bold text-gray-900">
+                האם את/ה בטוח/ה?
+              </h3>
+              <p className="mb-5 text-sm leading-6 text-gray-600">
+                הודעה זו תימחק מהאזור האישי ולא תופיע יותר בהיסטוריית הבדיקות.
+              </p>
+              <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-wrap break-words">
+                {confirmDeleteItem.message}
+              </div>
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteItem(null)}
+                  disabled={deletingId === confirmDeleteItem.id}
+                  className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteItem(confirmDeleteItem.id)}
+                  disabled={deletingId === confirmDeleteItem.id}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black disabled:opacity-60"
+                >
+                  <TrashIcon className="h-4 w-4 text-white" />
+                  {deletingId === confirmDeleteItem.id ? "מוחק..." : "כן, מחק"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

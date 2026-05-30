@@ -105,6 +105,31 @@ exports.getUserHistory = async (req, res) => {
   }
 };
 
+exports.deleteHistoryItem = async (req, res) => {
+  try {
+    if (!req.user?.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+    const deleted = await SearchHistory.findOneAndDelete({
+      _id: id,
+      userId: req.user.userId,
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ error: "History item not found." });
+    }
+
+    return res.json({ ok: true, id });
+  } catch (err) {
+    console.error("deleteHistoryItem error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to delete history item.", details: err.message });
+  }
+};
+
 exports.getUserDashboardStats = async (req, res) => {
   try {
     if (!req.user?.userId) {

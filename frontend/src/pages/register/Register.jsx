@@ -17,6 +17,38 @@ import {
   isStrongPassword,
 } from "../../utils/validation";
 
+const TEXT = {
+  firstNameRequired: "\u05e9\u05dd \u05e4\u05e8\u05d8\u05d9 \u05e0\u05d3\u05e8\u05e9",
+  lastNameRequired: "\u05e9\u05dd \u05de\u05e9\u05e4\u05d7\u05d4 \u05e0\u05d3\u05e8\u05e9",
+  emailRequired: "\u05db\u05ea\u05d5\u05d1\u05ea \u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05e0\u05d3\u05e8\u05e9\u05ea",
+  emailInvalid: "\u05db\u05ea\u05d5\u05d1\u05ea \u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05dc\u05d0 \u05ea\u05e7\u05d9\u05e0\u05d4",
+  passwordRequired: "\u05e1\u05d9\u05e1\u05de\u05d4 \u05e0\u05d3\u05e8\u05e9\u05ea",
+  passwordWeak:
+    "\u05d4\u05e1\u05d9\u05e1\u05de\u05d4 \u05d7\u05d9\u05d9\u05d1\u05ea \u05dc\u05db\u05dc\u05d5\u05dc 8 \u05ea\u05d5\u05d5\u05d9\u05dd, \u05d0\u05d5\u05ea \u05d2\u05d3\u05d5\u05dc\u05d4, \u05de\u05e1\u05e4\u05e8 \u05d5\u05ea\u05d5 \u05de\u05d9\u05d5\u05d7\u05d3",
+  genericError: "\u05d0\u05d9\u05e8\u05e2\u05d4 \u05e9\u05d2\u05d9\u05d0\u05d4, \u05e0\u05e1\u05d4 \u05e9\u05d5\u05d1 \u05de\u05d0\u05d5\u05d7\u05e8 \u05d9\u05d5\u05ea\u05e8.",
+  successTitle: "\u05e0\u05e8\u05e9\u05de\u05ea \u05d1\u05d4\u05e6\u05dc\u05d7\u05d4!",
+  successBody: "\u05de\u05e2\u05d1\u05d9\u05e8\u05d4 \u05d0\u05d5\u05ea\u05da \u05dc\u05d3\u05e3 \u05d4\u05d4\u05ea\u05d7\u05d1\u05e8\u05d5\u05ea...",
+  register: "\u05d4\u05e8\u05e9\u05de\u05d4",
+  heroTitleLine1: "\u05d4\u05e8\u05e9\u05de\u05d4 \u05e7\u05e6\u05e8\u05d4,",
+  heroTitleLine2: "\u05de\u05d3\u05d5\u05d9\u05e7\u05ea \u05d5\u05d1\u05dc\u05d9 \u05d2\u05dc\u05d9\u05dc\u05d4.",
+  heroBody:
+    "\u05e4\u05e8\u05d9\u05e1\u05d4 \u05d7\u05d3\u05e9\u05d4 \u05de\u05de\u05d5\u05e7\u05d3\u05ea \u05e9\u05de\u05e9\u05d0\u05d9\u05e8\u05d4 \u05d0\u05ea \u05db\u05dc \u05e9\u05d3\u05d5\u05ea \u05d4\u05d4\u05e8\u05e9\u05de\u05d4 \u05d1\u05de\u05d1\u05d8 \u05d0\u05d7\u05d3 \u05d1\u05e9\u05d5\u05dc\u05d7\u05df.",
+  compactForm: "\u05d8\u05d5\u05e4\u05e1 \u05e7\u05d5\u05de\u05e4\u05e7\u05d8\u05d9",
+  desktopFit: "\u05d4\u05ea\u05d0\u05de\u05d4 \u05dc\u05de\u05e1\u05da \u05de\u05d7\u05e9\u05d1",
+  firstName: "\u05e9\u05dd \u05e4\u05e8\u05d8\u05d9",
+  lastName: "\u05e9\u05dd \u05de\u05e9\u05e4\u05d7\u05d4",
+  firstNamePlaceholder: "\u05d9\u05d5\u05d7\u05e0\u05df",
+  lastNamePlaceholder: "\u05db\u05d4\u05df",
+  email: "\u05db\u05ea\u05d5\u05d1\u05ea \u05d0\u05d9\u05de\u05d9\u05d9\u05dc",
+  password: "\u05e1\u05d9\u05e1\u05de\u05d4",
+  hidePassword: "\u05d4\u05e1\u05ea\u05e8 \u05e1\u05d9\u05e1\u05de\u05d4",
+  showPassword: "\u05d4\u05e6\u05d2 \u05e1\u05d9\u05e1\u05de\u05d4",
+  submitLoading: "\u05e0\u05e8\u05e9\u05dd...",
+  submit: "\u05d4\u05d9\u05e8\u05e9\u05dd \u05d1\u05d1\u05d8\u05d7\u05d4",
+  haveAccount: "\u05db\u05d1\u05e8 \u05d9\u05e9 \u05dc\u05da \u05d7\u05e9\u05d1\u05d5\u05df?",
+  loginHere: "\u05d4\u05ea\u05d7\u05d1\u05e8 \u05db\u05d0\u05df",
+};
+
 export default function Register() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -38,14 +70,12 @@ export default function Register() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (isEmptyField(formData.firstName)) newErrors.firstName = "שם פרטי נדרש";
-    if (isEmptyField(formData.lastName)) newErrors.lastName = "שם משפחה נדרש";
-    if (isEmptyField(formData.email)) newErrors.email = "כתובת אימייל נדרשת";
-    else if (!isValidEmail(formData.email))
-      newErrors.email = "כתובת אימייל לא תקינה";
-    if (isEmptyField(formData.password)) newErrors.password = "סיסמה נדרשת";
-    else if (!isStrongPassword(formData.password))
-      newErrors.password = "הסיסמה חייבת לכלול 8 תווים, אות גדולה, מספר ותו מיוחד";
+    if (isEmptyField(formData.firstName)) newErrors.firstName = TEXT.firstNameRequired;
+    if (isEmptyField(formData.lastName)) newErrors.lastName = TEXT.lastNameRequired;
+    if (isEmptyField(formData.email)) newErrors.email = TEXT.emailRequired;
+    else if (!isValidEmail(formData.email)) newErrors.email = TEXT.emailInvalid;
+    if (isEmptyField(formData.password)) newErrors.password = TEXT.passwordRequired;
+    else if (!isStrongPassword(formData.password)) newErrors.password = TEXT.passwordWeak;
     return newErrors;
   };
 
@@ -64,8 +94,7 @@ export default function Register() {
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       setErrors({
-        general:
-          err.response?.data?.message || "אירעה שגיאה, נסה שוב מאוחר יותר.",
+        general: err.response?.data?.message || TEXT.genericError,
       });
     } finally {
       setLoading(false);
@@ -74,166 +103,190 @@ export default function Register() {
 
   if (success) {
     return (
-      <div className="min-h-[calc(100vh-64px)] bg-gray-50 flex items-center justify-center px-4 pt-8 md:pt-12 pb-8">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200/70 p-8 max-w-sm">
-            <CheckCircleIcon className="w-16 h-16 text-green-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              נרשמת בהצלחה!
-            </h2>
-            <p className="text-gray-600">מעבירה אותך לדף ההתחברות…</p>
-          </div>
-        </motion.div>
+      <div className="min-h-[calc(100vh-64px)] bg-[radial-gradient(circle_at_top,_rgba(68,155,162,0.14),_transparent_40%),linear-gradient(180deg,_#f7fbfb_0%,_#eef5f5_100%)] px-4 py-6">
+        <div className="flex min-h-[calc(100vh-112px)] items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center"
+          >
+            <div className="max-w-sm rounded-2xl bg-white p-8 shadow-lg ring-1 ring-gray-200/70">
+              <CheckCircleIcon className="mx-auto mb-4 h-16 w-16 text-green-600" />
+              <h2 className="mb-2 text-2xl font-bold text-gray-900">
+                {TEXT.successTitle}
+              </h2>
+              <p className="text-gray-600">{TEXT.successBody}</p>
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gray-50 flex items-start justify-center px-4 pt-8 md:pt-6 pb-4">
-      <div dir="rtl" className="w-full max-w-md">
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200/70 p-8"
-        >
-          {/* לוגו + כותרת */}
-          <div className="text-center mb-6">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.45 }}
-              className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#e9f4f5] ring-1 ring-[#449ba2]/20 flex items-center justify-center"
-            >
-              <img
-                src="/iconew.png"
-                alt="PhishTheSting"
-                className="w-10 h-10"
-              />
-            </motion.div>
-            <h1 className="text-2xl font-bold text-gray-900">הרשמה</h1>
-          </div>
-
-          {errors.general && (
-            <div className="mb-6">
-              <Alert type="error">{errors.general}</Alert>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="שם פרטי"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                error={errors.firstName}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2]
-                           transition-colors duration-200"
-                placeholder="יוחנן"
-              />
-              <Input
-                label="שם משפחה"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                error={errors.lastName}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2]
-                           transition-colors duration-200"
-                placeholder="כהן"
-              />
+    <div className="min-h-[calc(100vh-64px)] bg-[radial-gradient(circle_at_top,_rgba(68,155,162,0.14),_transparent_40%),linear-gradient(180deg,_#f7fbfb_0%,_#eef5f5_100%)] px-4 py-3 md:py-4">
+      <div className="flex min-h-[calc(100vh-88px)] items-center justify-center">
+        <div dir="rtl" className="w-full max-w-5xl">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="overflow-hidden rounded-[28px] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.12)] ring-1 ring-[#449ba2]/10 lg:grid lg:grid-cols-[0.9fr_1.1fr]"
+          >
+            <div className="hidden flex-col justify-between bg-[linear-gradient(180deg,_#dff0f1_0%,_#f4fbfb_100%)] p-8 lg:flex xl:p-10">
+              <div>
+                <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-[#449ba2]/15">
+                  <img
+                    src="/iconew.png"
+                    alt="PhishTheSting"
+                    className="h-10 w-10"
+                  />
+                </div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#337e84]">
+                  Safe onboarding
+                </p>
+                <h1 className="mb-4 text-4xl font-bold leading-tight text-slate-900">
+                  {TEXT.heroTitleLine1}
+                  <br />
+                  {TEXT.heroTitleLine2}
+                </h1>
+                <p className="max-w-sm text-sm leading-6 text-slate-600">
+                  {TEXT.heroBody}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                <div className="rounded-2xl bg-white/80 px-4 py-3 ring-1 ring-white">
+                  {TEXT.compactForm}
+                </div>
+                <div className="rounded-2xl bg-white/80 px-4 py-3 ring-1 ring-white">
+                  {TEXT.desktopFit}
+                </div>
+              </div>
             </div>
 
-            {/* אימייל ב-LTR */}
-            <Input
-              label="כתובת אימייל"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              error={errors.email}
-              required
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white
-                         focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2]
-                         transition-colors duration-200"
-              inputProps={{ dir: "ltr" }}
-              placeholder="your@email.com"
-            />
+            <div className="p-5 sm:p-6 lg:p-7 xl:p-8">
+              <div className="mb-5 text-center lg:hidden">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.45 }}
+                  className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e9f4f5] ring-1 ring-[#449ba2]/20"
+                >
+                  <img
+                    src="/iconew.png"
+                    alt="PhishTheSting"
+                    className="h-9 w-9"
+                  />
+                </motion.div>
+                <h1 className="text-2xl font-bold text-gray-900">{TEXT.register}</h1>
+              </div>
 
-            {/* סיסמה + אייקון ממורכז */}
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              סיסמה
-              {errors.password ? (
-                <span className="text-red-500"> *</span>
-              ) : (
-                " *"
+              {errors.general && (
+                <div className="mb-4">
+                  <Alert type="error">{errors.general}</Alert>
+                </div>
               )}
-            </label>
-            <div className="relative">
-              <Input
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={handleChange}
-                error={errors.password}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2]
-                           transition-colors duration-200 pr-12"
-                placeholder="••••••••"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 left-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label={showPassword ? "הסתר סיסמה" : "הצג סיסמה"}
-              >
-                {showPassword ? (
-                  <EyeSlashIcon className="w-5 h-5" />
-                ) : (
-                  <EyeIcon className="w-5 h-5" />
-                )}
-              </button>
+
+              <form onSubmit={handleSubmit} className="space-y-3.5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Input
+                    label={TEXT.firstName}
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    error={errors.firstName}
+                    required
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm transition-colors duration-200 focus:border-[#449ba2] focus:outline-none focus:ring-2 focus:ring-[#449ba2]"
+                    placeholder={TEXT.firstNamePlaceholder}
+                  />
+                  <Input
+                    label={TEXT.lastName}
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    error={errors.lastName}
+                    required
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm transition-colors duration-200 focus:border-[#449ba2] focus:outline-none focus:ring-2 focus:ring-[#449ba2]"
+                    placeholder={TEXT.lastNamePlaceholder}
+                  />
+                </div>
+
+                <Input
+                  label={TEXT.email}
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  error={errors.email}
+                  required
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm transition-colors duration-200 focus:border-[#449ba2] focus:outline-none focus:ring-2 focus:ring-[#449ba2]"
+                  inputProps={{ dir: "ltr" }}
+                  placeholder="your@email.com"
+                />
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {TEXT.password}
+                    {errors.password ? (
+                      <span className="text-red-500"> *</span>
+                    ) : (
+                      " *"
+                    )}
+                  </label>
+                  <div className="relative">
+                    <Input
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleChange}
+                      error={errors.password}
+                      required
+                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 pr-12 text-sm transition-colors duration-200 focus:border-[#449ba2] focus:outline-none focus:ring-2 focus:ring-[#449ba2]"
+                      placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute inset-y-0 left-3 flex items-center text-gray-400 transition-colors hover:text-gray-600"
+                      aria-label={showPassword ? TEXT.hidePassword : TEXT.showPassword}
+                    >
+                      {showPassword ? (
+                        <EyeSlashIcon className="h-5 w-5" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <PasswordRequirements password={formData.password} />
+
+                <Button
+                  type="submit"
+                  loading={loading}
+                  disabled={
+                    Object.values(formData).some((v) => !v.trim()) || loading
+                  }
+                  className="w-full rounded-xl bg-[#449ba2] py-2.5 text-white shadow-lg transition-all duration-200 hover:bg-[#337e84] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? TEXT.submitLoading : TEXT.submit}
+                </Button>
+              </form>
+
+              <div className="mt-4 text-center text-sm">
+                <p className="text-gray-600">
+                  {TEXT.haveAccount}
+                  <Link
+                    to="/login"
+                    className="mr-1 font-medium text-[#449ba2] transition-colors hover:text-[#337e84]"
+                  >
+                    {TEXT.loginHere}
+                  </Link>
+                </p>
+              </div>
             </div>
-            <PasswordRequirements password={formData.password} />
-
-            {/* כפתור הגשה בצבע מותג */}
-            <Button
-              type="submit"
-              size="lg"
-              loading={loading}
-              disabled={
-                Object.values(formData).some((v) => !v.trim()) || loading
-              }
-              className="w-full bg-[#449ba2] hover:bg-[#337e84] text-white py-3 rounded-xl
-                         font-semibold shadow-lg hover:shadow-xl transition-all duration-200
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "נרשם..." : "הירשם בבטחה"}
-            </Button>
-          </form>
-
-          {/* לינק התחברות */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              כבר יש לך חשבון?
-              <Link
-                to="/login"
-                className="font-medium text-[#449ba2] hover:text-[#337e84] transition-colors"
-              >
-                התחבר כאן
-              </Link>
-            </p>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -31,9 +31,36 @@ function signAuthToken(user) {
   );
 }
 
+function normalizeEmail(email = "") {
+  return String(email).trim().toLowerCase();
+}
+
+function looksLikeBcryptHash(value = "") {
+  return typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
+}
+
+async function verifyPasswordAndUpgradeIfNeeded(user, password) {
+  if (!user?.password) {
+    return false;
+  }
+
+  if (looksLikeBcryptHash(user.password)) {
+    return bcrypt.compare(password, user.password);
+  }
+
+  if (user.password !== password) {
+    return false;
+  }
+
+  user.password = await bcrypt.hash(password, 10);
+  await user.save();
+  return true;
+}
+
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ message: "Please fill in all required fields" });
@@ -64,10 +91,11 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user || !(await verifyPasswordAndUpgradeIfNeeded(user, password))) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
@@ -129,7 +157,8 @@ exports.updatePassword = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, email } = req.body;
+    const { firstName, lastName } = req.body;
+    const email = typeof req.body.email === "string" ? normalizeEmail(req.body.email) : undefined;
 
     if (!req.user?.userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -148,13 +177,13 @@ exports.updateProfile = async (req, res) => {
       user.lastName = lastName.trim();
     }
 
-    if (typeof email === "string" && email.trim() && email.trim() !== user.email) {
-      const existing = await User.findOne({ email: email.trim() });
+    if (typeof email === "string" && email && email !== user.email) {
+      const existing = await User.findOne({ email });
       if (existing) {
         return res.status(400).json({ message: "Email is already in use" });
       }
 
-      user.email = email.trim();
+      user.email = email;
     }
 
     await user.save();
@@ -171,7 +200,7 @@ exports.updateProfile = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = normalizeEmail(req.body.email);
     console.log("forgotPassword: reset requested", { email });
 
     const user = await User.findOne({ email });

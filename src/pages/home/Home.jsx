@@ -1,56 +1,33 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  ShieldCheckIcon, 
-  EyeIcon, 
+import {
+  ShieldCheckIcon,
+  EyeIcon,
   LightBulbIcon,
   ArrowRightIcon,
   CheckCircleIcon,
   AcademicCapIcon,
   UserGroupIcon,
   ClockIcon,
-  StarIcon
-} from '@heroicons/react/24/outline';
+  StarIcon,
+} from "@heroicons/react/24/outline";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 
 const features = [
   {
-    icon: ShieldCheckIcon,
-    title: "זיהוי מתקדם ומדויק",
-    description: "טכנולוגיה מתקדמת המבוססת על מחקר אקדמי ובינה מלאכותית לזיהוי הונאות"
-  },
-  {
     icon: EyeIcon,
     title: "ניתוח מקיף ומעמיק",
-    description: "בדיקה רב-שכבתית של תוכן, קישורים, ודפוסי התנהגות חשודים"
+    description: "בדיקה רב-שכבתית של תוכן, קישורים, ודפוסי התנהגות חשודים",
   },
-  {
-    icon: LightBulbIcon,
-    title: "חינוך והדרכה",
-    description: "מדריכים מקצועיים ועצות מומחים לחיזוק המודעות לאבטחת מידע"
-  }
 ];
 
 const stats = [
   { number: "99.8%", label: "דיוק בזיהוי", icon: CheckCircleIcon },
   { number: "2M+", label: "הודעות נותחו", icon: EyeIcon },
   { number: "24/7", label: "זמינות מלאה", icon: ClockIcon },
-  { number: "100%", label: "בחינם לחלוטין", icon: StarIcon }
-];
-
-const testimonials = [
-  {
-    name: "ד\"ר רחל כהן",
-    role: "מומחית אבטחת מידע",
-    text: "כלי מקצועי ואמין שעוזר לזהות איומים בצורה יעילה"
-  },
-  {
-    name: "יוסי לוי",
-    role: "מנהל IT בחברה גדולה",
-    text: "השירות הכי טוב שמצאתי לבדיקת הודעות חשודות"
-  }
+  { number: "100%", label: "בחינם לחלוטין", icon: StarIcon },
 ];
 
 export default function Home() {
@@ -73,7 +50,6 @@ export default function Home() {
                 </div>
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <AcademicCapIcon className="w-5 h-5 text-blue-600" />
-                  <span>מבוסס מחקר אקדמי</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <UserGroupIcon className="w-5 h-5 text-purple-600" />
@@ -86,8 +62,7 @@ export default function Home() {
                 <span className="block text-blue-600">הונאות פישינג</span>
               </h1>
               <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto leading-relaxed">
-                שירות מקצועי ומהימן לזיהוי הונאות פישינג. פותח על ידי מומחי אבטחת מידע 
-                ומבוסס על מחקר אקדמי מתקדם.
+                שירות מקצועי ומהימן לזיהוי הונאות פישינג.
               </p>
             </motion.div>
 
@@ -162,9 +137,7 @@ export default function Home() {
                   <div className="text-3xl font-bold text-gray-900 mb-2">
                     {stat.number}
                   </div>
-                  <div className="text-gray-600 text-sm">
-                    {stat.label}
-                  </div>
+                  <div className="text-gray-600 text-sm">{stat.label}</div>
                 </motion.div>
               );
             })}
@@ -181,14 +154,7 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
             className="text-center mb-16"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-              למה לבחור בשירות שלנו?
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              טכנולוגיה מתקדמת, פשוטה לשימוש ומבוססת על מחקר מדעי
-            </p>
-          </motion.div>
+          ></motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature, index) => {
@@ -230,14 +196,7 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
             className="text-center mb-16"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-              מה אומרים המומחים
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              המלצות ממומחי אבטחת מידע ומנהלי IT
-            </p>
-          </motion.div>
+          ></motion.div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {testimonials.map((testimonial, index) => (
@@ -251,7 +210,10 @@ export default function Home() {
               >
                 <div className="flex items-center mb-4">
                   {[...Array(5)].map((_, i) => (
-                    <StarIcon key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                    <StarIcon
+                      key={i}
+                      className="w-5 h-5 text-yellow-400 fill-current"
+                    />
                   ))}
                 </div>
                 <p className="text-gray-700 mb-6 italic">
@@ -296,7 +258,7 @@ export default function Home() {
               "אמת מידע דרך ערוצים רשמיים",
               "השתמש באימות דו-שלבי",
               "עדכן תוכנות אבטחה באופן קבוע",
-              "היזהר ממסרים דחופים ומאיימים"
+              "היזהר ממסרים דחופים ומאיימים",
             ].map((tip, index) => (
               <motion.div
                 key={index}
@@ -337,7 +299,7 @@ export default function Home() {
             >
               התחל עכשיו - בחינם לחלוטין
             </Button>
-            
+
             {/* Additional Trust Elements */}
             <div className="mt-8 flex justify-center items-center space-x-8 text-sm text-gray-500">
               <div className="flex items-center space-x-2">

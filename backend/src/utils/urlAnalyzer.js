@@ -1,248 +1,266 @@
 // npm i tldts
-const { URL } = require('node:url');
-const { isIP } = require('node:net');
-const punycode = require('node:punycode');
-const axios = require('axios');
-const { parse: parseDomain } = require('tldts');
+const { URL } = require("node:url");
+const { isIP } = require("node:net");
+const punycode = require("node:punycode");
+const axios = require("axios");
+const { parse: parseDomain } = require("tldts");
 
 const SHORTENER_HOSTS = new Set([
-  'bit.ly',
-  't.co',
-  'tinyurl.com',
-  'goo.gl',
-  'ow.ly',
-  'buff.ly',
-  'rebrand.ly',
-  'cutt.ly',
-  'is.gd',
-  'tiny.cc',
+  "bit.ly",
+  "t.co",
+  "tinyurl.com",
+  "goo.gl",
+  "ow.ly",
+  "buff.ly",
+  "rebrand.ly",
+  "cutt.ly",
+  "is.gd",
+  "tiny.cc",
+  "did.li",
+  "s.id",
 ]);
 
 const SUSPICIOUS_WORDS = [
-  'login',
-  'signin',
-  'sign-in',
-  'verify',
-  'verification',
-  'secure',
-  'update',
-  'account',
-  'password',
-  'reset',
-  'wallet',
-  'bank',
-  'billing',
-  'invoice',
-  'gift',
-  'crypto',
-  'support',
-  'sso',
+  "login",
+  "signin",
+  "sign-in",
+  "verify",
+  "verification",
+  "secure",
+  "update",
+  "account",
+  "password",
+  "reset",
+  "wallet",
+  "bank",
+  "billing",
+  "invoice",
+  "gift",
+  "crypto",
+  "support",
+  "sso",
 ];
 
 const REDIRECT_PARAMS = new Set([
-  'url',
-  'u',
-  'to',
-  'target',
-  'dest',
-  'destination',
-  'redirect',
-  'redirect_url',
-  'redirect_uri',
-  'continue',
-  'return',
-  'return_to',
-  'next',
-  'callback',
+  "url",
+  "u",
+  "to",
+  "target",
+  "dest",
+  "destination",
+  "redirect",
+  "redirect_url",
+  "redirect_uri",
+  "continue",
+  "return",
+  "return_to",
+  "next",
+  "callback",
 ]);
 
 // חשוב: זה חייב להיות קונפיגורציה שלך, לא רשימת "כל העולם".
 // לפרויקט אקדמי/מוצר MVP בחרי סט מותגים רלוונטי.
 const BRAND_CONFIG = [
   {
-    brand: 'google',
-    category: 'technology',
-    legitDomains: ['google.com', 'google.co.il', 'googleapis.com', 'googleusercontent.com'],
+    brand: "google",
+    category: "technology",
+    legitDomains: [
+      "google.com",
+      "google.co.il",
+      "googleapis.com",
+      "googleusercontent.com",
+    ],
   },
   {
-    brand: 'microsoft',
-    category: 'technology',
-    legitDomains: ['microsoft.com', 'live.com', 'office.com', 'outlook.com', 'microsoftonline.com'],
+    brand: "microsoft",
+    category: "technology",
+    legitDomains: [
+      "microsoft.com",
+      "live.com",
+      "office.com",
+      "outlook.com",
+      "microsoftonline.com",
+    ],
   },
   {
-    brand: 'apple',
-    category: 'technology',
-    legitDomains: ['apple.com', 'icloud.com'],
+    brand: "apple",
+    category: "technology",
+    legitDomains: ["apple.com", "icloud.com"],
   },
   {
-    brand: 'visa',
-    category: 'banking',
-    legitDomains: ['visa.com'],
+    brand: "visa",
+    category: "banking",
+    legitDomains: ["visa.com"],
   },
   {
-    brand: 'mastercard',
-    category: 'banking',
-    legitDomains: ['mastercard.com'],
+    brand: "mastercard",
+    category: "banking",
+    legitDomains: ["mastercard.com"],
   },
   {
-    brand: 'bank',
-    category: 'banking',
-    legitDomains: ['bankofamerica.com', 'bank.co.il'],
+    brand: "bank",
+    category: "banking",
+    legitDomains: ["bankofamerica.com", "bank.co.il"],
   },
   {
-    brand: 'leumi',
-    category: 'banking',
-    legitDomains: ['leumi.co.il'],
+    brand: "leumi",
+    category: "banking",
+    legitDomains: ["leumi.co.il"],
   },
   {
-    brand: 'hapoalim',
-    category: 'banking',
-    legitDomains: ['bankhapoalim.co.il'],
+    brand: "hapoalim",
+    category: "banking",
+    legitDomains: ["bankhapoalim.co.il"],
   },
   {
-    brand: 'discount',
-    category: 'banking',
-    legitDomains: ['discountbank.co.il'],
+    brand: "discount",
+    category: "banking",
+    legitDomains: ["discountbank.co.il"],
   },
   {
-    brand: 'mizrahi',
-    category: 'banking',
-    legitDomains: ['mizrahi-tefahot.co.il'],
+    brand: "mizrahi",
+    category: "banking",
+    legitDomains: ["mizrahi-tefahot.co.il"],
   },
   {
-    brand: 'paypal',
-    category: 'banking',
-    legitDomains: ['paypal.com'],
+    brand: "paypal",
+    category: "banking",
+    legitDomains: ["paypal.com"],
   },
   {
-    brand: 'icloud',
-    category: 'technology',
-    legitDomains: ['icloud.com'],
+    brand: "cal",
+    category: "banking",
+    legitDomains: ["cal-online.co.il"],
   },
   {
-    brand: 'outlook',
-    category: 'technology',
-    legitDomains: ['outlook.com'],
+    brand: "icloud",
+    category: "technology",
+    legitDomains: ["icloud.com"],
   },
   {
-    brand: 'office',
-    category: 'technology',
-    legitDomains: ['office.com'],
+    brand: "outlook",
+    category: "technology",
+    legitDomains: ["outlook.com"],
   },
   {
-    brand: 'github',
-    category: 'technology',
-    legitDomains: ['github.com'],
+    brand: "office",
+    category: "technology",
+    legitDomains: ["office.com"],
   },
   {
-    brand: 'amazon',
-    category: 'shopping',
-    legitDomains: ['amazon.com', 'amazon.co.uk', 'amazon.de', 'amazonaws.com'],
+    brand: "github",
+    category: "technology",
+    legitDomains: ["github.com"],
   },
   {
-    brand: 'facebook',
-    category: 'social',
-    legitDomains: ['facebook.com', 'fb.com', 'meta.com', 'instagram.com'],
+    brand: "amazon",
+    category: "shopping",
+    legitDomains: ["amazon.com", "amazon.co.uk", "amazon.de", "amazonaws.com"],
   },
   {
-    brand: 'instagram',
-    category: 'social',
-    legitDomains: ['instagram.com'],
+    brand: "facebook",
+    category: "social",
+    legitDomains: ["facebook.com", "fb.com", "meta.com", "instagram.com"],
   },
   {
-    brand: 'whatsapp',
-    category: 'social',
-    legitDomains: ['whatsapp.com'],
+    brand: "instagram",
+    category: "social",
+    legitDomains: ["instagram.com"],
   },
   {
-    brand: 'telegram',
-    category: 'social',
-    legitDomains: ['telegram.org'],
+    brand: "whatsapp",
+    category: "social",
+    legitDomains: ["whatsapp.com"],
   },
   {
-    brand: 'tiktok',
-    category: 'social',
-    legitDomains: ['tiktok.com'],
+    brand: "telegram",
+    category: "social",
+    legitDomains: ["telegram.org"],
   },
   {
-    brand: 'linkedin',
-    category: 'social',
-    legitDomains: ['linkedin.com'],
+    brand: "tiktok",
+    category: "social",
+    legitDomains: ["tiktok.com"],
   },
   {
-    brand: 'ebay',
-    category: 'shopping',
-    legitDomains: ['ebay.com'],
+    brand: "linkedin",
+    category: "social",
+    legitDomains: ["linkedin.com"],
   },
   {
-    brand: 'aliexpress',
-    category: 'shopping',
-    legitDomains: ['aliexpress.com'],
+    brand: "ebay",
+    category: "shopping",
+    legitDomains: ["ebay.com"],
   },
   {
-    brand: 'shein',
-    category: 'shopping',
-    legitDomains: ['shein.com'],
+    brand: "aliexpress",
+    category: "shopping",
+    legitDomains: ["aliexpress.com"],
   },
   {
-    brand: 'dhl',
-    category: 'shopping',
-    legitDomains: ['dhl.com'],
+    brand: "shein",
+    category: "shopping",
+    legitDomains: ["shein.com"],
   },
   {
-    brand: 'fedex',
-    category: 'shopping',
-    legitDomains: ['fedex.com'],
+    brand: "dhl",
+    category: "shopping",
+    legitDomains: ["dhl.com"],
   },
   {
-    brand: 'ups',
-    category: 'shopping',
-    legitDomains: ['ups.com'],
+    brand: "fedex",
+    category: "shopping",
+    legitDomains: ["fedex.com"],
   },
   {
-    brand: 'israelpost',
-    category: 'shopping',
-    legitDomains: ['israelpost.co.il'],
+    brand: "ups",
+    category: "shopping",
+    legitDomains: ["ups.com"],
   },
   {
-    brand: 'binance',
-    category: 'crypto',
-    legitDomains: ['binance.com'],
+    brand: "israelpost",
+    category: "shopping",
+    legitDomains: ["israelpost.co.il"],
   },
   {
-    brand: 'coinbase',
-    category: 'crypto',
-    legitDomains: ['coinbase.com'],
+    brand: "binance",
+    category: "crypto",
+    legitDomains: ["binance.com"],
   },
   {
-    brand: 'metamask',
-    category: 'crypto',
-    legitDomains: ['metamask.io'],
+    brand: "coinbase",
+    category: "crypto",
+    legitDomains: ["coinbase.com"],
   },
   {
-    brand: 'trustwallet',
-    category: 'crypto',
-    legitDomains: ['trustwallet.com'],
+    brand: "metamask",
+    category: "crypto",
+    legitDomains: ["metamask.io"],
   },
   {
-    brand: 'gov',
-    category: 'government',
-    legitDomains: ['gov.il'],
+    brand: "trustwallet",
+    category: "crypto",
+    legitDomains: ["trustwallet.com"],
   },
   {
-    brand: 'tax',
-    category: 'government',
-    legitDomains: ['tax.gov.il'],
+    brand: "gov",
+    category: "government",
+    legitDomains: ["gov.il"],
   },
   {
-    brand: 'bituachleumi',
-    category: 'government',
-    legitDomains: ['btl.gov.il'],
+    brand: "tax",
+    category: "government",
+    legitDomains: ["tax.gov.il"],
+  },
+  {
+    brand: "bituachleumi",
+    category: "government",
+    legitDomains: ["btl.gov.il"],
   },
 ];
 
 function normalizeHost(hostname) {
-  return hostname.toLowerCase().replace(/\.$/, '');
+  return hostname.toLowerCase().replace(/\.$/, "");
 }
 
 function isKnownShortenerUrl(inputUrl) {
@@ -264,7 +282,7 @@ function isKnownShortenerUrl(inputUrl) {
 function isBitlyUrl(inputUrl) {
   try {
     const parsed = new URL(inputUrl);
-    return normalizeHost(parsed.hostname) === 'bit.ly';
+    return normalizeHost(parsed.hostname) === "bit.ly";
   } catch {
     return false;
   }
@@ -274,9 +292,9 @@ async function expandBitlyUrl(shortUrl) {
   const token = process.env.BITLY_ACCESS_TOKEN;
 
   if (!token) {
-    console.log('Bitly API failed', {
+    console.log("Bitly API failed", {
       shortUrl,
-      reason: 'BITLY_ACCESS_TOKEN is missing',
+      reason: "BITLY_ACCESS_TOKEN is missing",
     });
     return null;
   }
@@ -285,40 +303,40 @@ async function expandBitlyUrl(shortUrl) {
     const parsed = new URL(shortUrl);
     const bitlink_id = `${parsed.host}${parsed.pathname}`;
 
-    console.log('Bitly API expansion started', {
+    console.log("Bitly API expansion started", {
       shortUrl,
       bitlink_id,
     });
 
     const response = await axios.post(
-      'https://api-ssl.bitly.com/v4/expand',
+      "https://api-ssl.bitly.com/v4/expand",
       { bitlink_id },
       {
         timeout: 3000,
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         proxy: false,
-      }
+      },
     );
 
     if (response.data?.long_url) {
-      console.log('Bitly API success', {
+      console.log("Bitly API success", {
         shortUrl,
         expandedUrl: response.data.long_url,
       });
       return response.data.long_url;
     }
 
-    console.log('Bitly API failed', {
+    console.log("Bitly API failed", {
       shortUrl,
-      reason: 'long_url missing in response',
+      reason: "long_url missing in response",
       responseData: response.data || null,
     });
     return null;
   } catch (error) {
-    console.log('Bitly API failed', {
+    console.log("Bitly API failed", {
       shortUrl,
       message: error.message,
       status: error.response?.status || null,
@@ -352,7 +370,7 @@ function shannonEntropy(text) {
 function tokenize(value) {
   return safeDecode(value)
     .toLowerCase()
-    .normalize('NFKC')
+    .normalize("NFKC")
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean);
 }
@@ -361,14 +379,14 @@ function skeleton(token) {
   return punycode
     .toUnicode(token)
     .toLowerCase()
-    .normalize('NFKC')
-    .replace(/[0]/g, 'o')
-    .replace(/[1|!]/g, 'l')
-    .replace(/[3]/g, 'e')
-    .replace(/[4]/g, 'a')
-    .replace(/[5$]/g, 's')
-    .replace(/[7]/g, 't')
-    .replace(/[^a-z0-9]/g, '');
+    .normalize("NFKC")
+    .replace(/[0]/g, "o")
+    .replace(/[1|!]/g, "l")
+    .replace(/[3]/g, "e")
+    .replace(/[4]/g, "a")
+    .replace(/[5$]/g, "s")
+    .replace(/[7]/g, "t")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function levenshtein(a, b) {
@@ -377,7 +395,7 @@ function levenshtein(a, b) {
   if (!b) return a.length;
 
   const dp = Array.from({ length: a.length + 1 }, () =>
-    new Array(b.length + 1).fill(0)
+    new Array(b.length + 1).fill(0),
   );
 
   for (let i = 0; i <= a.length; i++) dp[i][0] = i;
@@ -398,30 +416,31 @@ function levenshtein(a, b) {
 }
 
 function defaultPort(protocol) {
-  return protocol === 'http:' ? '80' : protocol === 'https:' ? '443' : '';
+  return protocol === "http:" ? "80" : protocol === "https:" ? "443" : "";
 }
 
 function labelHasMixedScripts(label) {
   const scripts = new Set();
 
-  for (const ch of label.normalize('NFKC')) {
-    if (/\p{Script=Latin}/u.test(ch)) scripts.add('Latin');
-    else if (/\p{Script=Cyrillic}/u.test(ch)) scripts.add('Cyrillic');
-    else if (/\p{Script=Greek}/u.test(ch)) scripts.add('Greek');
-    else if (/\p{Script=Hebrew}/u.test(ch)) scripts.add('Hebrew');
-    else if (/\p{Script=Arabic}/u.test(ch)) scripts.add('Arabic');
+  for (const ch of label.normalize("NFKC")) {
+    if (/\p{Script=Latin}/u.test(ch)) scripts.add("Latin");
+    else if (/\p{Script=Cyrillic}/u.test(ch)) scripts.add("Cyrillic");
+    else if (/\p{Script=Greek}/u.test(ch)) scripts.add("Greek");
+    else if (/\p{Script=Hebrew}/u.test(ch)) scripts.add("Hebrew");
+    else if (/\p{Script=Arabic}/u.test(ch)) scripts.add("Arabic");
   }
 
-  // ערבוב סקריפטים באותה תווית שמכילה לטינית הוא דגל טוב להומוגרפים
-  return scripts.size > 1 && scripts.has('Latin');
+  return scripts.size > 1 && scripts.has("Latin");
 }
 
 function detectBrandRisk(hostname, registrableDomain, brandConfig) {
   const findings = [];
   let score = 0;
 
-  const hostTokens = tokenize(hostname.replace(/\./g, '-'));
-  const registrableLabel = (registrableDomain.split('.')[0] || '').toLowerCase();
+  const hostTokens = tokenize(hostname.replace(/\./g, "-"));
+  const registrableLabel = (
+    registrableDomain.split(".")[0] || ""
+  ).toLowerCase();
 
   for (const rule of brandConfig) {
     const brand = rule.brand.toLowerCase();
@@ -443,7 +462,7 @@ function detectBrandRisk(hostname, registrableDomain, brandConfig) {
 
     if (!allowed && hasBrandToken) {
       findings.push(
-        `שם המותג "${brand}" מופיע ב-hostname, אבל הדומיין הרשום הוא "${registrableDomain}" ואינו דומיין מורשה של המותג`
+        `שם המותג "${brand}" מופיע ב-hostname, אבל הדומיין הרשום הוא "${registrableDomain}" ואינו דומיין מורשה של המותג`,
       );
       score += 25;
       continue;
@@ -451,9 +470,57 @@ function detectBrandRisk(hostname, registrableDomain, brandConfig) {
 
     if (!allowed && (skeletonMatchOnRoot || nearMatchOnRoot)) {
       findings.push(
-        `הדומיין הרשום "${registrableDomain}" דומה מאוד למותג "${brand}" אך אינו דומיין מורשה`
+        `הדומיין הרשום "${registrableDomain}" דומה מאוד למותג "${brand}" אך אינו דומיין מורשה`,
       );
       score += 30;
+    }
+  }
+
+  return { findings, score };
+}
+
+function detectPathLookalikeRisk(parsedUrl, registrableDomain, brandConfig) {
+  const findings = [];
+  let score = 0;
+  const pathTokens = tokenize(parsedUrl.pathname);
+  const tokenCandidates = [...pathTokens];
+
+  for (let index = 0; index < pathTokens.length - 1; index += 1) {
+    tokenCandidates.push(`${pathTokens[index]}${pathTokens[index + 1]}`);
+  }
+
+  for (const token of tokenCandidates) {
+    const tokenSkeleton = skeleton(token);
+    const tokenVisualSkeleton = tokenSkeleton.replace(/i/g, "l");
+    if (!tokenVisualSkeleton || tokenVisualSkeleton.length < 3) continue;
+
+    if (
+      token.length >= 3 &&
+      token.length <= 12 &&
+      tokenVisualSkeleton !== token &&
+      /[0-9il$]/i.test(token)
+    ) {
+      findings.push(
+        `הטוקן "${token}" בנתיב משתמש בתווים מבלבלים ועלול להסתיר יעד אחר`,
+      );
+      score += 18;
+      continue;
+    }
+
+    for (const rule of brandConfig) {
+      const brand = rule.brand.toLowerCase();
+      const legit = new Set(rule.legitDomains.map((d) => d.toLowerCase()));
+      const brandSkeleton = skeleton(brand);
+
+      if (tokenVisualSkeleton !== brandSkeleton) continue;
+      if (token.toLowerCase() === brand) continue;
+      if (legit.has(registrableDomain)) continue;
+
+      findings.push(
+        `הטוקן "${token}" בנתיב נראה כמו המותג "${brand}" אך נכתב בצורה מבלבלת`,
+      );
+      score += 24;
+      break;
     }
   }
 
@@ -472,7 +539,7 @@ function detectExternalRedirect(parsedUrl) {
       const target = new URL(value, parsedUrl.origin);
       if (target.origin !== parsedUrl.origin) {
         findings.push(
-          `פרמטר ההפניה "${key}" מצביע ל-origin חיצוני: ${target.origin}`
+          `פרמטר ההפניה "${key}" מצביע ל-origin חיצוני: ${target.origin}`,
         );
         score += 25;
       }
@@ -486,7 +553,7 @@ function detectExternalRedirect(parsedUrl) {
 
 function makeResult(base) {
   const score = Math.max(0, Math.min(base.riskScore, 100));
-  const riskLevel = score >= 60 ? 'high' : score >= 30 ? 'medium' : 'low';
+  const riskLevel = score >= 60 ? "high" : score >= 30 ? "medium" : "low";
 
   return {
     ...base,
@@ -509,11 +576,11 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
       hostname: null,
       unicodeHostname: null,
       riskScore: 20,
-      findings: ['כתובת URL לא תקינה או לא מלאה'],
+      findings: ["כתובת URL לא תקינה או לא מלאה"],
     });
   }
 
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
+  if (!["http:", "https:"].includes(parsed.protocol)) {
     return makeResult({
       input: rawUrl,
       normalizedUrl: parsed.toString(),
@@ -521,7 +588,9 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
       publicSuffix: null,
       subdomain: null,
       hostname: parsed.hostname || null,
-      unicodeHostname: parsed.hostname ? punycode.toUnicode(parsed.hostname) : null,
+      unicodeHostname: parsed.hostname
+        ? punycode.toUnicode(parsed.hostname)
+        : null,
       riskScore: 80,
       findings: [`סכמה לא נתמכת או מסוכנת: ${parsed.protocol}`],
     });
@@ -537,7 +606,7 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
 
   const registrableDomain = (domainInfo.domain || hostname).toLowerCase();
   const publicSuffix = domainInfo.publicSuffix || null;
-  const subdomain = domainInfo.subdomain || '';
+  const subdomain = domainInfo.subdomain || "";
 
   const findings = [];
   let score = 0;
@@ -549,83 +618,97 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
 
   // 1. credentials לפני ה-host
   if (parsed.username || parsed.password) {
-    add(35, 'הקישור מכיל username/password לפני שם המארח');
+    add(35, "הקישור מכיל username/password לפני שם המארח");
   }
 
   // 2. כתובת IP במקום דומיין
-  const ipCandidate = hostname.replace(/^\[|\]$/g, '');
+  const ipCandidate = hostname.replace(/^\[|\]$/g, "");
   if (isIP(ipCandidate)) {
-    add(35, 'הקישור משתמש בכתובת IP במקום בשם דומיין');
+    add(35, "הקישור משתמש בכתובת IP במקום בשם דומיין");
   }
 
+  const isShortener = SHORTENER_HOSTS.has(registrableDomain);
+
   // 3. shortener
-  if (SHORTENER_HOSTS.has(registrableDomain)) {
-    add(12, 'הקישור מגיע משירות קיצור ולכן היעד האמיתי מוסתר בשלב הראשון');
+  if (isShortener) {
+    add(12, "הקישור מגיע משירות קיצור ולכן היעד האמיתי מוסתר בשלב הראשון");
   }
 
   // 4. IDN / Punycode
-  if (hostname.includes('xn--')) {
-    add(25, 'שם המתחם מכיל Punycode, ולכן נדרש לבדוק הומוגרפים ו-IDN');
+  if (hostname.includes("xn--")) {
+    add(25, "שם המתחם מכיל Punycode, ולכן נדרש לבדוק הומוגרפים ו-IDN");
   }
 
   // 5. ערבוב סקריפטים בתוך אותה תווית
-  if (unicodeHostname.split('.').some(labelHasMixedScripts)) {
-    add(25, 'נמצא ערבוב סקריפטים בתוך תווית אחת של הדומיין');
+  if (unicodeHostname.split(".").some(labelHasMixedScripts)) {
+    add(25, "נמצא ערבוב סקריפטים בתוך תווית אחת של הדומיין");
   }
 
   // 6. ריבוי תתי־דומיינים
-  const subCount = subdomain ? subdomain.split('.').filter(Boolean).length : 0;
+  const subCount = subdomain ? subdomain.split(".").filter(Boolean).length : 0;
   if (subCount >= 3) {
-    add(18, 'מספר חריג של תתי־דומיינים');
+    add(18, "מספר חריג של תתי־דומיינים");
   }
 
   // 7. אורך URL
   if (rawUrl.length >= 100) {
-    add(10, 'הקישור ארוך במיוחד');
+    add(10, "הקישור ארוך במיוחד");
   }
 
   // 8. אנטרופיה גבוהה ב-hostname
-  const hostEntropy = shannonEntropy(hostname.replace(/\./g, ''));
+  const hostEntropy = shannonEntropy(hostname.replace(/\./g, ""));
   if (hostEntropy >= 3.8) {
-    add(15, 'שם המארח נראה אקראי יחסית');
+    add(15, "שם המארח נראה אקראי יחסית");
   }
 
   // 9. יחס ספרות/אותיות
   const letters = (hostname.match(/[a-z]/gi) || []).length;
   const digits = (hostname.match(/\d/g) || []).length;
   if (letters > 0 && digits / letters >= 0.3) {
-    add(10, 'יחס גבוה של ספרות לאותיות בשם המתחם');
+    add(10, "יחס גבוה של ספרות לאותיות בשם המתחם");
   }
 
   // 10. מקפים רבים בדומיין הרשום
   if ((registrableDomain.match(/-/g) || []).length >= 2) {
-    add(12, 'ריבוי מקפים בדומיין הרשום');
+    add(12, "ריבוי מקפים בדומיין הרשום");
   }
 
   // 11. מילים חשודות ב-path / query
-  const decodedPathAndQuery = safeDecode(`${parsed.pathname}${parsed.search}`).toLowerCase();
-  const foundWords = [...new Set(SUSPICIOUS_WORDS.filter((w) => decodedPathAndQuery.includes(w)))];
+  const decodedPathAndQuery = safeDecode(
+    `${parsed.pathname}${parsed.search}`,
+  ).toLowerCase();
+  const foundWords = [
+    ...new Set(SUSPICIOUS_WORDS.filter((w) => decodedPathAndQuery.includes(w))),
+  ];
   if (foundWords.length > 0) {
     add(
       Math.min(20, 6 + foundWords.length * 4),
-      `נמצאו מילות פיתוי/אימות בנתיב או בשאילתה: ${foundWords.join(', ')}`
+      `נמצאו מילות פיתוי/אימות בנתיב או בשאילתה: ${foundWords.join(", ")}`,
     );
   }
 
   // 12. URL נוסף בתוך path/query או // חריג
-  if (/https?:\/\//i.test(decodedPathAndQuery) || parsed.pathname.includes('//')) {
-    add(15, 'הנתיב או הפרמטרים מכילים URL נוסף או // חריג');
+  if (
+    /https?:\/\//i.test(decodedPathAndQuery) ||
+    parsed.pathname.includes("//")
+  ) {
+    add(15, "הנתיב או הפרמטרים מכילים URL נוסף או // חריג");
   }
 
   // 13. percent-encoding משמעותי
-  const percentEncodedCount = (parsed.search.match(/%[0-9a-f]{2}/gi) || []).length;
+  const percentEncodedCount = (parsed.search.match(/%[0-9a-f]{2}/gi) || [])
+    .length;
   if (percentEncodedCount >= 4 || /%25[0-9a-f]{2}/i.test(parsed.search)) {
-    add(10, 'יש שימוש משמעותי בקידוד אחוזים');
+    add(10, "יש שימוש משמעותי בקידוד אחוזים");
   }
 
   // 14. מחרוזת שנראית כמו דומיין נוסף בתוך הנתיב/שאילתה
-  if (/\b[a-z0-9-]+\.(?:com|net|org|co|io|gov|app|bank|edu)\b/i.test(decodedPathAndQuery)) {
-    add(8, 'הנתיב או הפרמטרים מכילים מחרוזת שנראית כמו דומיין נוסף');
+  if (
+    /\b[a-z0-9-]+\.(?:com|net|org|co|io|gov|app|bank|edu)\b/i.test(
+      decodedPathAndQuery,
+    )
+  ) {
+    add(8, "הנתיב או הפרמטרים מכילים מחרוזת שנראית כמו דומיין נוסף");
   }
 
   // 15. פורט לא רגיל
@@ -642,6 +725,28 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
   const redirectRisk = detectExternalRedirect(parsed);
   score += redirectRisk.score;
   findings.push(...redirectRisk.findings);
+
+  const pathLookalikeRisk = detectPathLookalikeRisk(
+    parsed,
+    registrableDomain,
+    brandConfig,
+  );
+  score += pathLookalikeRisk.score;
+  findings.push(...pathLookalikeRisk.findings);
+
+  if (isShortener && pathLookalikeRisk.score > 0) {
+    add(
+      22,
+      "שילוב של שירות קיצור עם טוקן מטעה בנתיב מעלה משמעותית את הסבירות לפישינג",
+    );
+  }
+
+  if (isShortener && pathLookalikeRisk.score > 0 && foundWords.length > 0) {
+    add(
+      10,
+      `שירות קיצור, טוקן מטעה ומילות פיתוי יחד (${foundWords.join(", ")}) מחזקים את החשד`,
+    );
+  }
 
   return makeResult({
     input: rawUrl,
@@ -677,16 +782,16 @@ async function expandShortUrl(inputUrl, fetchImpl = fetch, maxHops = 5) {
 
     try {
       response = await fetchImpl(current, {
-        method: 'HEAD',
-        redirect: 'manual',
+        method: "HEAD",
+        redirect: "manual",
         signal: controller.signal,
       });
 
       // יש אתרים שלא תומכים ב-HEAD
       if (response.status === 405 || response.status === 501) {
         response = await fetchImpl(current, {
-          method: 'GET',
-          redirect: 'manual',
+          method: "GET",
+          redirect: "manual",
           signal: controller.signal,
         });
       }
@@ -698,7 +803,7 @@ async function expandShortUrl(inputUrl, fetchImpl = fetch, maxHops = 5) {
       break;
     }
 
-    const location = response.headers.get('location');
+    const location = response.headers.get("location");
     if (!location) break;
 
     const next = new URL(location, current).toString();
@@ -744,16 +849,23 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing) {
     } else {
       expanded = {
         ...expanded,
-        expansionFinding: 'הקישור מקוצר אך לא ניתן היה לחשוף את היעד הסופי',
+        expansionFinding: "הקישור מקוצר אך לא ניתן היה לחשוף את היעד הסופי",
       };
     }
   }
 
-  const manual = analyzeUrl(expanded.finalUrl);
+  const originalManual = analyzeUrl(inputUrl);
+  const expandedManual =
+    expanded.finalUrl === inputUrl ? originalManual : analyzeUrl(expanded.finalUrl);
 
   if (expanded.expansionFinding) {
-    manual.findings = [...manual.findings, expanded.expansionFinding];
+    expandedManual.findings = [...expandedManual.findings, expanded.expansionFinding];
   }
+
+  const manual =
+    expandedManual.riskScore >= originalManual.riskScore
+      ? expandedManual
+      : originalManual;
 
   const googleVerdict = await checkGoogleSafeBrowsing([
     inputUrl,
@@ -764,6 +876,8 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing) {
     originalUrl: inputUrl,
     expandedUrl: expanded.finalUrl,
     redirectHops: expanded.hops,
+    originalManualAnalysis: originalManual,
+    expandedManualAnalysis: expandedManual,
     manualAnalysis: manual,
     googleVerdict,
   };

@@ -11,6 +11,7 @@ const {
   analyzeMessage,
   saveAnalysisHistory,
   getUserHistory,
+  deleteHistoryItem,
   getUserDashboardStats,
 } = require("../controllers/analyzeController");
 
@@ -30,5 +31,6 @@ router.post(
 );
 router.get("/dashboard", historyLimiter, authenticateToken, getUserDashboardStats);
 router.get("/history", historyLimiter, authenticateToken, getUserHistory);
+router.delete("/history/:id", historyLimiter, authenticateToken, deleteHistoryItem);
 
 module.exports = router;
