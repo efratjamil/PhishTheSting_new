@@ -6,14 +6,12 @@ const tips = [
   {
     icon: "🔍",
     title: "בדקו את כתובת השולח",
-    description:
-      "ודאו שהדומיין תואם לארגון הרשמי ואינו מכיל שינויים חשודים.",
+    description: "ודאו שהדומיין תואם לארגון הרשמי ואינו מכיל שינויים חשודים.",
   },
   {
     icon: "🔗",
     title: "בדקו קישורים לפני לחיצה",
-    description:
-      "העבירו את העכבר מעל הקישור ובחנו את כתובת היעד המלאה.",
+    description: "העבירו את העכבר מעל הקישור ובחנו את כתובת היעד המלאה.",
   },
   {
     icon: "⚠️",
@@ -24,8 +22,7 @@ const tips = [
   {
     icon: "🚨",
     title: "היזהרו מתחושת דחיפות",
-    description:
-      "הודעות המפעילות לחץ לפעולה מיידית הן סימן אזהרה נפוץ.",
+    description: "הודעות המפעילות לחץ לפעולה מיידית הן סימן אזהרה נפוץ.",
   },
   {
     icon: "✍️",
@@ -76,7 +73,9 @@ export default function Home() {
             >
               <motion.span
                 initial={{ backgroundPosition: "0% 50%" }}
-                animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+                animate={{
+                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                }}
                 transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
                 className="inline-block pb-2 bg-[linear-gradient(120deg,#0f172a_0%,#449ba2_35%,#7dd3cf_50%,#449ba2_65%,#0f172a_100%)] bg-[length:220%_220%] bg-clip-text text-transparent"
               >
@@ -159,21 +158,21 @@ export default function Home() {
           <div className="rounded-[2rem] border border-slate-200/70 bg-slate-950 px-6 py-10 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] sm:px-10">
             <div className="text-center">
               <div className="mb-4 flex items-center justify-center gap-3">
-                <img src="/iconew.png" alt="PhishTheSting" className="h-10 w-10" />
+                <img
+                  src="/iconew.png"
+                  alt="PhishTheSting"
+                  className="h-10 w-10"
+                />
                 <span className="text-2xl font-black tracking-wide">
                   PhishTheSting
                 </span>
               </div>
-              <p className="mx-auto mb-6 max-w-2xl text-slate-300">
-                בודקים הודעות, מסמנים סיכון, ועוזרים לזהות פישינג לפני שהוא
-                מזהה אותך.
-              </p>
+
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-slate-400">
                 <span>© 2025 PhishTheSting</span>
                 <span>•</span>
-                <span>פרטיות לפני הכול</span>
+                <span>ביטחון לפני הכול</span>
                 <span>•</span>
-                <span>אבטחה בלי רעש</span>
               </div>
             </div>
           </div>
