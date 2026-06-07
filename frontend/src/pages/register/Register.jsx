@@ -18,35 +18,34 @@ import {
 } from "../../utils/validation";
 
 const TEXT = {
-  firstNameRequired: "\u05e9\u05dd \u05e4\u05e8\u05d8\u05d9 \u05e0\u05d3\u05e8\u05e9",
-  lastNameRequired: "\u05e9\u05dd \u05de\u05e9\u05e4\u05d7\u05d4 \u05e0\u05d3\u05e8\u05e9",
-  emailRequired: "\u05db\u05ea\u05d5\u05d1\u05ea \u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05e0\u05d3\u05e8\u05e9\u05ea",
-  emailInvalid: "\u05db\u05ea\u05d5\u05d1\u05ea \u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05dc\u05d0 \u05ea\u05e7\u05d9\u05e0\u05d4",
-  passwordRequired: "\u05e1\u05d9\u05e1\u05de\u05d4 \u05e0\u05d3\u05e8\u05e9\u05ea",
-  passwordWeak:
-    "\u05d4\u05e1\u05d9\u05e1\u05de\u05d4 \u05d7\u05d9\u05d9\u05d1\u05ea \u05dc\u05db\u05dc\u05d5\u05dc 8 \u05ea\u05d5\u05d5\u05d9\u05dd, \u05d0\u05d5\u05ea \u05d2\u05d3\u05d5\u05dc\u05d4, \u05de\u05e1\u05e4\u05e8 \u05d5\u05ea\u05d5 \u05de\u05d9\u05d5\u05d7\u05d3",
-  genericError: "\u05d0\u05d9\u05e8\u05e2\u05d4 \u05e9\u05d2\u05d9\u05d0\u05d4, \u05e0\u05e1\u05d4 \u05e9\u05d5\u05d1 \u05de\u05d0\u05d5\u05d7\u05e8 \u05d9\u05d5\u05ea\u05e8.",
-  successTitle: "\u05e0\u05e8\u05e9\u05de\u05ea \u05d1\u05d4\u05e6\u05dc\u05d7\u05d4!",
-  successBody: "\u05de\u05e2\u05d1\u05d9\u05e8\u05d4 \u05d0\u05d5\u05ea\u05da \u05dc\u05d3\u05e3 \u05d4\u05d4\u05ea\u05d7\u05d1\u05e8\u05d5\u05ea...",
-  register: "\u05d4\u05e8\u05e9\u05de\u05d4",
-  heroTitleLine1: "\u05d4\u05e8\u05e9\u05de\u05d4 \u05e7\u05e6\u05e8\u05d4,",
-  heroTitleLine2: "\u05de\u05d3\u05d5\u05d9\u05e7\u05ea \u05d5\u05d1\u05dc\u05d9 \u05d2\u05dc\u05d9\u05dc\u05d4.",
-  heroBody:
-    "\u05e4\u05e8\u05d9\u05e1\u05d4 \u05d7\u05d3\u05e9\u05d4 \u05de\u05de\u05d5\u05e7\u05d3\u05ea \u05e9\u05de\u05e9\u05d0\u05d9\u05e8\u05d4 \u05d0\u05ea \u05db\u05dc \u05e9\u05d3\u05d5\u05ea \u05d4\u05d4\u05e8\u05e9\u05de\u05d4 \u05d1\u05de\u05d1\u05d8 \u05d0\u05d7\u05d3 \u05d1\u05e9\u05d5\u05dc\u05d7\u05df.",
-  compactForm: "\u05d8\u05d5\u05e4\u05e1 \u05e7\u05d5\u05de\u05e4\u05e7\u05d8\u05d9",
-  desktopFit: "\u05d4\u05ea\u05d0\u05de\u05d4 \u05dc\u05de\u05e1\u05da \u05de\u05d7\u05e9\u05d1",
-  firstName: "\u05e9\u05dd \u05e4\u05e8\u05d8\u05d9",
-  lastName: "\u05e9\u05dd \u05de\u05e9\u05e4\u05d7\u05d4",
-  firstNamePlaceholder: "\u05d9\u05d5\u05d7\u05e0\u05df",
-  lastNamePlaceholder: "\u05db\u05d4\u05df",
-  email: "\u05db\u05ea\u05d5\u05d1\u05ea \u05d0\u05d9\u05de\u05d9\u05d9\u05dc",
-  password: "\u05e1\u05d9\u05e1\u05de\u05d4",
-  hidePassword: "\u05d4\u05e1\u05ea\u05e8 \u05e1\u05d9\u05e1\u05de\u05d4",
-  showPassword: "\u05d4\u05e6\u05d2 \u05e1\u05d9\u05e1\u05de\u05d4",
-  submitLoading: "\u05e0\u05e8\u05e9\u05dd...",
-  submit: "\u05d4\u05d9\u05e8\u05e9\u05dd \u05d1\u05d1\u05d8\u05d7\u05d4",
-  haveAccount: "\u05db\u05d1\u05e8 \u05d9\u05e9 \u05dc\u05da \u05d7\u05e9\u05d1\u05d5\u05df?",
-  loginHere: "\u05d4\u05ea\u05d7\u05d1\u05e8 \u05db\u05d0\u05df",
+  firstNameRequired: "שם פרטי נדרש",
+  lastNameRequired: "שם משפחה נדרש",
+  emailRequired: "כתובת אימייל נדרשת",
+  emailInvalid: "כתובת אימייל לא תקינה",
+  passwordRequired: "סיסמה נדרשת",
+  passwordWeak: "הסיסמה חייבת לכלול 8 תווים, אות גדולה, מספר ותו מיוחד",
+
+  genericError: "אירעה שגיאה, נסה שוב מאוחר יותר.",
+
+  successTitle: "נרשמת בהצלחה!",
+  successBody: "מעביר אותך לדף ההתחברות...",
+
+  register: "הרשמה",
+
+  firstName: "שם פרטי",
+  lastName: "שם משפחה",
+
+  email: "כתובת אימייל",
+  password: "סיסמה",
+
+  hidePassword: "הסתר סיסמה",
+  showPassword: "הצג סיסמה",
+
+  submitLoading: "נרשם...",
+  submit: "הירשם בבטחה",
+
+  haveAccount: "כבר יש לך חשבון?",
+  loginHere: "התחבר כאן",
 };
 
 export default function Register() {
@@ -70,12 +69,16 @@ export default function Register() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (isEmptyField(formData.firstName)) newErrors.firstName = TEXT.firstNameRequired;
-    if (isEmptyField(formData.lastName)) newErrors.lastName = TEXT.lastNameRequired;
+    if (isEmptyField(formData.firstName))
+      newErrors.firstName = TEXT.firstNameRequired;
+    if (isEmptyField(formData.lastName))
+      newErrors.lastName = TEXT.lastNameRequired;
     if (isEmptyField(formData.email)) newErrors.email = TEXT.emailRequired;
     else if (!isValidEmail(formData.email)) newErrors.email = TEXT.emailInvalid;
-    if (isEmptyField(formData.password)) newErrors.password = TEXT.passwordRequired;
-    else if (!isStrongPassword(formData.password)) newErrors.password = TEXT.passwordWeak;
+    if (isEmptyField(formData.password))
+      newErrors.password = TEXT.passwordRequired;
+    else if (!isStrongPassword(formData.password))
+      newErrors.password = TEXT.passwordWeak;
     return newErrors;
   };
 
@@ -178,7 +181,9 @@ export default function Register() {
                     className="h-9 w-9"
                   />
                 </motion.div>
-                <h1 className="text-2xl font-bold text-gray-900">{TEXT.register}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {TEXT.register}
+                </h1>
               </div>
 
               {errors.general && (
@@ -248,7 +253,9 @@ export default function Register() {
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
                       className="absolute inset-y-0 left-3 flex items-center text-gray-400 transition-colors hover:text-gray-600"
-                      aria-label={showPassword ? TEXT.hidePassword : TEXT.showPassword}
+                      aria-label={
+                        showPassword ? TEXT.hidePassword : TEXT.showPassword
+                      }
                     >
                       {showPassword ? (
                         <EyeSlashIcon className="h-5 w-5" />
