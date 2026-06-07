@@ -11,12 +11,52 @@ import {
 import Button from "../../components/ui/Button";
 import { getAuthHeaders, getStoredUser } from "../../utils/auth";
 
-const extractUrls = (text) => {
-  const matches =
-    text.match(
-      /\b(?:https?:\/\/)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi
-    ) || [];
+const findUrlLikeSegments = (text) => {
+  const sourceText = String(text);
+  const schemePattern = /\bhttps?:\/\/[^\s<>"']+/gi;
+  const domainPattern =
+    /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi;
+  const segments = [];
 
+  const addMatch = (match, index) => {
+    if (typeof match !== "string" || typeof index !== "number") {
+      return;
+    }
+
+    const value = match.replace(/[),.;!?]+$/g, "");
+    if (!value) {
+      return;
+    }
+
+    segments.push({
+      value,
+      start: index,
+      end: index + value.length,
+    });
+  };
+
+  for (const match of sourceText.matchAll(schemePattern)) {
+    addMatch(match[0], match.index);
+  }
+
+  for (const match of sourceText.matchAll(domainPattern)) {
+    const value = match[0];
+    const start = match.index;
+    const end = start + value.length;
+    const overlapsSchemeMatch = segments.some(
+      (segment) => start >= segment.start && end <= segment.end
+    );
+
+    if (!overlapsSchemeMatch) {
+      addMatch(value, start);
+    }
+  }
+
+  return segments.sort((left, right) => left.start - right.start);
+};
+
+const extractUrls = (text) => {
+  const matches = findUrlLikeSegments(text).map((segment) => segment.value);
   const normalizedUrls = matches.map((url) =>
     /^https?:\/\//i.test(url) ? url : `https://${url}`
   );
@@ -64,12 +104,16 @@ export default function Analyze() {
           extractedUrls.map((url) =>
             axios.post(
               "http://localhost:5000/api/links/check-safety",
-              { url },
+              {
+                url,
+                messageText: message,
+                extractedUrls,
+              },
               {
                 headers: getAuthHeaders(),
               },
-            )
-          )
+            ),
+          ),
         );
 
         console.log(
@@ -95,6 +139,7 @@ export default function Analyze() {
               }
             : null,
           googleVerdict: response.data.googleVerdict || null,
+          sslCertificate: response.data.sslCertificate || null,
         }));
 
         urlThreats = checkedLinks
@@ -145,6 +190,7 @@ export default function Analyze() {
           urlAnalysis,
           originalMessage: message,
           extractedUrls,
+          checkedLinks,
           urlThreats,
         },
       });
@@ -159,6 +205,7 @@ export default function Analyze() {
           urlAnalysis: false,
           originalMessage: message,
           extractedUrls: extractUrls(message),
+          checkedLinks: [],
           urlThreats: [],
           apiError: err.response?.data?.error || err.message,
         },
