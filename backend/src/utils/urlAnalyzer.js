@@ -4,6 +4,16 @@ const { isIP } = require("node:net");
 const punycode = require("node:punycode");
 const axios = require("axios");
 const { parse: parseDomain } = require("tldts");
+const {
+  BRAND_CONFIG,
+  analyzeUrlBrandSignals,
+} = require("../brand/brandDetector");
+const {
+  resolveBrandImpersonationWithGemini,
+} = require("../../services/geminiService");
+const {
+  getSslCertificateDetails,
+} = require("../services/sslCertificateService");
 
 const SHORTENER_HOSTS = new Set([
   "bit.ly",
@@ -60,205 +70,6 @@ const REDIRECT_PARAMS = new Set([
 
 // חשוב: זה חייב להיות קונפיגורציה שלך, לא רשימת "כל העולם".
 // לפרויקט אקדמי/מוצר MVP בחרי סט מותגים רלוונטי.
-const BRAND_CONFIG = [
-  {
-    brand: "google",
-    category: "technology",
-    legitDomains: [
-      "google.com",
-      "google.co.il",
-      "googleapis.com",
-      "googleusercontent.com",
-    ],
-  },
-  {
-    brand: "microsoft",
-    category: "technology",
-    legitDomains: [
-      "microsoft.com",
-      "live.com",
-      "office.com",
-      "outlook.com",
-      "microsoftonline.com",
-    ],
-  },
-  {
-    brand: "apple",
-    category: "technology",
-    legitDomains: ["apple.com", "icloud.com"],
-  },
-  {
-    brand: "visa",
-    category: "banking",
-    legitDomains: ["visa.com"],
-  },
-  {
-    brand: "mastercard",
-    category: "banking",
-    legitDomains: ["mastercard.com"],
-  },
-  {
-    brand: "bank",
-    category: "banking",
-    legitDomains: ["bankofamerica.com", "bank.co.il"],
-  },
-  {
-    brand: "leumi",
-    category: "banking",
-    legitDomains: ["leumi.co.il"],
-  },
-  {
-    brand: "hapoalim",
-    category: "banking",
-    legitDomains: ["bankhapoalim.co.il"],
-  },
-  {
-    brand: "discount",
-    category: "banking",
-    legitDomains: ["discountbank.co.il"],
-  },
-  {
-    brand: "mizrahi",
-    category: "banking",
-    legitDomains: ["mizrahi-tefahot.co.il"],
-  },
-  {
-    brand: "paypal",
-    category: "banking",
-    legitDomains: ["paypal.com"],
-  },
-  {
-    brand: "cal",
-    category: "banking",
-    legitDomains: ["cal-online.co.il"],
-  },
-  {
-    brand: "icloud",
-    category: "technology",
-    legitDomains: ["icloud.com"],
-  },
-  {
-    brand: "outlook",
-    category: "technology",
-    legitDomains: ["outlook.com"],
-  },
-  {
-    brand: "office",
-    category: "technology",
-    legitDomains: ["office.com"],
-  },
-  {
-    brand: "github",
-    category: "technology",
-    legitDomains: ["github.com"],
-  },
-  {
-    brand: "amazon",
-    category: "shopping",
-    legitDomains: ["amazon.com", "amazon.co.uk", "amazon.de", "amazonaws.com"],
-  },
-  {
-    brand: "facebook",
-    category: "social",
-    legitDomains: ["facebook.com", "fb.com", "meta.com", "instagram.com"],
-  },
-  {
-    brand: "instagram",
-    category: "social",
-    legitDomains: ["instagram.com"],
-  },
-  {
-    brand: "whatsapp",
-    category: "social",
-    legitDomains: ["whatsapp.com"],
-  },
-  {
-    brand: "telegram",
-    category: "social",
-    legitDomains: ["telegram.org"],
-  },
-  {
-    brand: "tiktok",
-    category: "social",
-    legitDomains: ["tiktok.com"],
-  },
-  {
-    brand: "linkedin",
-    category: "social",
-    legitDomains: ["linkedin.com"],
-  },
-  {
-    brand: "ebay",
-    category: "shopping",
-    legitDomains: ["ebay.com"],
-  },
-  {
-    brand: "aliexpress",
-    category: "shopping",
-    legitDomains: ["aliexpress.com"],
-  },
-  {
-    brand: "shein",
-    category: "shopping",
-    legitDomains: ["shein.com"],
-  },
-  {
-    brand: "dhl",
-    category: "shopping",
-    legitDomains: ["dhl.com"],
-  },
-  {
-    brand: "fedex",
-    category: "shopping",
-    legitDomains: ["fedex.com"],
-  },
-  {
-    brand: "ups",
-    category: "shopping",
-    legitDomains: ["ups.com"],
-  },
-  {
-    brand: "israelpost",
-    category: "shopping",
-    legitDomains: ["israelpost.co.il"],
-  },
-  {
-    brand: "binance",
-    category: "crypto",
-    legitDomains: ["binance.com"],
-  },
-  {
-    brand: "coinbase",
-    category: "crypto",
-    legitDomains: ["coinbase.com"],
-  },
-  {
-    brand: "metamask",
-    category: "crypto",
-    legitDomains: ["metamask.io"],
-  },
-  {
-    brand: "trustwallet",
-    category: "crypto",
-    legitDomains: ["trustwallet.com"],
-  },
-  {
-    brand: "gov",
-    category: "government",
-    legitDomains: ["gov.il"],
-  },
-  {
-    brand: "tax",
-    category: "government",
-    legitDomains: ["tax.gov.il"],
-  },
-  {
-    brand: "bituachleumi",
-    category: "government",
-    legitDomains: ["btl.gov.il"],
-  },
-];
-
 function normalizeHost(hostname) {
   return hostname.toLowerCase().replace(/\.$/, "");
 }
@@ -562,6 +373,61 @@ function makeResult(base) {
   };
 }
 
+function applySslSignals(analysis, sslCertificate) {
+  if (!analysis || !sslCertificate) {
+    return {
+      analysis,
+      sslCertificate: sslCertificate || null,
+      sslFindings: [],
+    };
+  }
+
+  const nextFindings = [...(analysis.findings || [])];
+  let nextScore = analysis.riskScore || 0;
+  const sslFindings = [];
+
+  const addSslFinding = (points, message) => {
+    nextScore += points;
+    nextFindings.push(message);
+    sslFindings.push(message);
+  };
+
+  if (sslCertificate.hasHttps === false) {
+    addSslFinding(10, "הקישור לא משתמש ב-HTTPS");
+  } else if (sslCertificate.hasHttps === true && sslCertificate.hasCertificate === false) {
+    addSslFinding(15, "לא נמצאה תעודת SSL תקינה לקישור");
+  }
+
+  if (
+    sslCertificate.hasCertificate === true &&
+    (sslCertificate.certificateValid === false || sslCertificate.isExpired === true)
+  ) {
+    addSslFinding(15, "תעודת ה-SSL אינה בתוקף או שפג תוקפה");
+  }
+
+  if (
+    sslCertificate.hasCertificate === true &&
+    sslCertificate.hostnameMatchesCertificate === false
+  ) {
+    addSslFinding(35, "שם הדומיין לא תואם לתעודת ה-SSL");
+  }
+
+  const updatedAnalysis = makeResult({
+    ...analysis,
+    riskScore: nextScore,
+    findings: [...new Set(nextFindings)],
+  });
+
+  updatedAnalysis.sslCertificate = sslCertificate;
+  updatedAnalysis.sslFindings = sslFindings;
+
+  return {
+    analysis: updatedAnalysis,
+    sslCertificate,
+    sslFindings,
+  };
+}
+
 function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
   let parsed;
   try {
@@ -717,31 +583,29 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
   }
 
   // 16. התחזות למותג
-  const brandRisk = detectBrandRisk(hostname, registrableDomain, brandConfig);
-  score += brandRisk.score;
-  findings.push(...brandRisk.findings);
+  const brandSignals = analyzeUrlBrandSignals({
+    hostname,
+    registrableDomain,
+    subdomain,
+    pathname: parsed.pathname,
+    brandConfig,
+  });
+  score += brandSignals.scoreDelta;
+  findings.push(...brandSignals.findings);
 
   // 17. פרמטרי redirect החוצה
   const redirectRisk = detectExternalRedirect(parsed);
   score += redirectRisk.score;
   findings.push(...redirectRisk.findings);
 
-  const pathLookalikeRisk = detectPathLookalikeRisk(
-    parsed,
-    registrableDomain,
-    brandConfig,
-  );
-  score += pathLookalikeRisk.score;
-  findings.push(...pathLookalikeRisk.findings);
-
-  if (isShortener && pathLookalikeRisk.score > 0) {
+  if (isShortener && brandSignals.lookalikeMatchCount > 0) {
     add(
       22,
       "שילוב של שירות קיצור עם טוקן מטעה בנתיב מעלה משמעותית את הסבירות לפישינג",
     );
   }
 
-  if (isShortener && pathLookalikeRisk.score > 0 && foundWords.length > 0) {
+  if (isShortener && brandSignals.lookalikeMatchCount > 0 && foundWords.length > 0) {
     add(
       10,
       `שירות קיצור, טוקן מטעה ומילות פיתוי יחד (${foundWords.join(", ")}) מחזקים את החשד`,
@@ -758,6 +622,9 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
     unicodeHostname,
     riskScore: score,
     findings,
+    brandDetections: brandSignals.detections,
+    ambiguousBrandMatches: brandSignals.ambiguousMatches,
+    unmatchedBrandCandidates: brandSignals.unmatchedBrandLikeCandidates,
   });
 }
 
@@ -823,8 +690,203 @@ async function expandShortUrl(inputUrl, fetchImpl = fetch, maxHops = 5) {
   };
 }
 
+function detectShortenerInterstitial(expanded = {}) {
+  const originalUrl = expanded.originalUrl || "";
+  const finalUrl = expanded.finalUrl || "";
+  const hops = Array.isArray(expanded.hops) ? expanded.hops : [];
+
+  if (!originalUrl || !finalUrl || hops.length === 0) {
+    return null;
+  }
+
+  try {
+    const originalParsed = new URL(originalUrl);
+    const finalParsed = new URL(finalUrl);
+    const originalHost = normalizeHost(originalParsed.hostname);
+    const finalHost = normalizeHost(finalParsed.hostname);
+    const originalDomain = (
+      parseDomain(originalHost, {
+        allowIcannDomains: true,
+        allowPrivateDomains: true,
+      }).domain || originalHost
+    ).toLowerCase();
+    const finalDomain = (
+      parseDomain(finalHost, {
+        allowIcannDomains: true,
+        allowPrivateDomains: true,
+      }).domain || finalHost
+    ).toLowerCase();
+
+    if (originalDomain !== finalDomain || !SHORTENER_HOSTS.has(originalDomain)) {
+      return null;
+    }
+
+    const landingPath = safeDecode(`${finalParsed.pathname}${finalParsed.search}`).toLowerCase();
+    const looksLikeInterstitial =
+      /(nospam|preview|warning|blocked|unsafe|interstitial|captcha|verify|alert)/i.test(
+        landingPath,
+      );
+
+    if (looksLikeInterstitial) {
+      return {
+        scoreDelta: 24,
+        finding:
+          "שירות הקיצור הפנה לדף ביניים/סינון במקום לחשוף יעד חיצוני, ולכן היעד הסופי נותר מוסתר.",
+      };
+    }
+
+    if (finalHost === originalHost && finalUrl !== originalUrl) {
+      return {
+        scoreDelta: 14,
+        finding:
+          "שירות הקיצור לא חשף יעד חיצוני ברור ונשאר בתוך אותו דומיין מקוצר, ולכן היעד עדיין מוסתר.",
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function messageHasFinancialPressure(messageText = "") {
+  const normalized = String(messageText).toLowerCase();
+
+  return [
+    "חוב",
+    "לתשלום",
+    "תשלום",
+    "חשבונית",
+    "מכס",
+    "fee",
+    "payment",
+    "invoice",
+    "debt",
+    "due",
+  ].some((term) => normalized.includes(term));
+}
+
+function shouldSkipGeminiForKnownShortenerPlatform(analysis = {}, candidateBrand = "") {
+  const hostname = normalizeHost(analysis.hostname || "");
+  const registrableDomain = (analysis.registrableDomain || hostname || "").toLowerCase();
+  const normalizedCandidate = skeleton(candidateBrand);
+
+  if (!SHORTENER_HOSTS.has(registrableDomain)) {
+    return false;
+  }
+
+  const platformTokens = new Set(
+    tokenize(hostname.replace(/\./g, "-")).map((token) => skeleton(token)),
+  );
+  platformTokens.add(skeleton(registrableDomain.split(".")[0] || ""));
+
+  return platformTokens.has(normalizedCandidate);
+}
+
 // אינטגרציה עם השכבה שכבר יש לך
-async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing) {
+function shouldUseGeminiBrandFallback({
+  analysis,
+  hasUrl = false,
+} = {}) {
+  if (!analysis || !hasUrl) {
+    return false;
+  }
+
+  const ambiguousMatches = Array.isArray(analysis.ambiguousBrandMatches)
+    ? analysis.ambiguousBrandMatches
+    : [];
+  const unmatchedCandidates = Array.isArray(analysis.unmatchedBrandCandidates)
+    ? analysis.unmatchedBrandCandidates
+    : [];
+  const strongDetections = Array.isArray(analysis.brandDetections)
+    ? analysis.brandDetections.filter((item) => item.confidence >= 90)
+    : [];
+
+  if (strongDetections.length > 0 && analysis.riskScore >= 40) {
+    return false;
+  }
+
+  return (
+    ambiguousMatches.length > 0 ||
+    (analysis.riskScore >= 30 && unmatchedCandidates.length > 0)
+  );
+}
+
+function pickGeminiCandidate(analysis = {}) {
+  const ambiguousMatch = Array.isArray(analysis.ambiguousBrandMatches)
+    ? analysis.ambiguousBrandMatches[0]
+    : null;
+
+  if (ambiguousMatch?.rawValue) {
+    return ambiguousMatch.rawValue;
+  }
+
+  const unmatchedCandidate = Array.isArray(analysis.unmatchedBrandCandidates)
+    ? analysis.unmatchedBrandCandidates[0]
+    : null;
+
+  return unmatchedCandidate?.rawValue || "";
+}
+
+async function applyGeminiBrandFallback(analysis, context = {}) {
+  if (!shouldUseGeminiBrandFallback({ analysis, hasUrl: Boolean(context.url) })) {
+    return analysis;
+  }
+
+  const candidateBrand = pickGeminiCandidate(analysis);
+  if (!candidateBrand) {
+    return analysis;
+  }
+
+  if (shouldSkipGeminiForKnownShortenerPlatform(analysis, candidateBrand)) {
+    return analysis;
+  }
+
+  const geminiAssessment = await resolveBrandImpersonationWithGemini({
+    candidateBrand,
+    fullDomain: analysis.hostname || analysis.registrableDomain || context.url || "",
+    messageText: context.messageText || "",
+    extractedUrls: context.extractedUrls || [context.url].filter(Boolean),
+  });
+
+  if (!geminiAssessment) {
+    return analysis;
+  }
+
+  const nextFindings = [...analysis.findings];
+  let nextScore = analysis.riskScore;
+
+  if (
+    geminiAssessment.isBrand &&
+    geminiAssessment.isLikelyImpersonation &&
+    geminiAssessment.confidence >= 75
+  ) {
+    nextScore += geminiAssessment.confidence >= 90 ? 22 : 15;
+    nextFindings.push(
+      `זוהתה התחזות אפשרית למותג ${geminiAssessment.realBrandName || candidateBrand}. ${geminiAssessment.reason || ""}`.trim(),
+    );
+  } else if (
+    geminiAssessment.isBrand &&
+    geminiAssessment.isLikelyImpersonation &&
+    geminiAssessment.confidence >= 50
+  ) {
+    nextScore += 8;
+    nextFindings.push(
+      `נמצא חשד בינוני לקשר למותג ${geminiAssessment.realBrandName || candidateBrand}, אך הזיהוי אינו חד-משמעי.`,
+    );
+  }
+
+  const updated = makeResult({
+    ...analysis,
+    findings: [...new Set(nextFindings)],
+    riskScore: nextScore,
+  });
+
+  updated.geminiBrandAssessment = geminiAssessment;
+  return updated;
+}
+
+async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {}) {
   let expanded;
 
   try {
@@ -854,12 +916,68 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing) {
     }
   }
 
-  const originalManual = analyzeUrl(inputUrl);
-  const expandedManual =
+  let originalManual = analyzeUrl(inputUrl);
+  let expandedManual =
     expanded.finalUrl === inputUrl ? originalManual : analyzeUrl(expanded.finalUrl);
 
   if (expanded.expansionFinding) {
     expandedManual.findings = [...expandedManual.findings, expanded.expansionFinding];
+  }
+
+  const shortenerInterstitial = detectShortenerInterstitial(expanded);
+  if (shortenerInterstitial) {
+    expandedManual = makeResult({
+      ...expandedManual,
+      riskScore: expandedManual.riskScore + shortenerInterstitial.scoreDelta,
+      findings: [...expandedManual.findings, shortenerInterstitial.finding],
+    });
+  }
+
+  if (shortenerInterstitial && messageHasFinancialPressure(context.messageText || "")) {
+    expandedManual = makeResult({
+      ...expandedManual,
+      riskScore: expandedManual.riskScore + 14,
+      findings: [
+        ...expandedManual.findings,
+        "בשילוב עם שפה של חוב/תשלום בהודעה, קישור מקוצר שמסתיר יעד מאחורי דף ביניים נחשב חשוד במיוחד.",
+      ],
+    });
+  }
+
+  const [originalSslCertificate, expandedSslCertificateRaw] = await Promise.all([
+    getSslCertificateDetails(inputUrl),
+    expanded.finalUrl === inputUrl
+      ? Promise.resolve(null)
+      : getSslCertificateDetails(expanded.finalUrl),
+  ]);
+
+  originalManual = await applyGeminiBrandFallback(originalManual, {
+    ...context,
+    url: inputUrl,
+  });
+
+  if (expanded.finalUrl === inputUrl) {
+    expandedManual = originalManual;
+  } else {
+    expandedManual = await applyGeminiBrandFallback(expandedManual, {
+      ...context,
+      url: expanded.finalUrl,
+    });
+  }
+
+  const originalSslApplied = applySslSignals(originalManual, originalSslCertificate);
+  originalManual = originalSslApplied.analysis;
+
+  const expandedSslCertificate =
+    expanded.finalUrl === inputUrl
+      ? originalSslCertificate
+      : expandedSslCertificateRaw;
+
+  if (expanded.finalUrl === inputUrl) {
+    expandedManual = originalManual;
+  } else {
+    const expandedSslApplied = applySslSignals(expandedManual, expandedSslCertificate);
+    expandedManual = expandedSslApplied.analysis;
   }
 
   const manual =
@@ -879,6 +997,12 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing) {
     originalManualAnalysis: originalManual,
     expandedManualAnalysis: expandedManual,
     manualAnalysis: manual,
+    originalSslCertificate,
+    expandedSslCertificate,
+    sslCertificate:
+      expandedManual.riskScore >= originalManual.riskScore
+        ? expandedSslCertificate
+        : originalSslCertificate,
     googleVerdict,
   };
 }

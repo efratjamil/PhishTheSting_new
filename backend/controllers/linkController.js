@@ -1,6 +1,7 @@
 const { scanLink } = require("../services/linkService");
 const { checkUrlSafety } = require("../services/googleSafeBrowsing");
 const { checkUrlWithLayers } = require("../src/utils/urlAnalyzer");
+const { getSslCertificateDetails } = require("../src/services/sslCertificateService");
 
 async function postScanLink(req, res, next) {
   try {
@@ -18,7 +19,7 @@ async function postCheckUrlSafety(req, res, next) {
   try {
     console.log("POST /api/links/check-safety body:", req.body);
 
-    const { url } = req.body;
+    const { url, messageText = "", extractedUrls = [] } = req.body;
 
     if (!url || typeof url !== "string") {
       return res.status(400).json({ ok: false, error: "url is required" });
@@ -38,6 +39,9 @@ async function postCheckUrlSafety(req, res, next) {
         threats: [...new Set(unsafeVerdicts.flatMap((item) => item.threats || []))],
         checks: verdicts,
       };
+    }, {
+      messageText,
+      extractedUrls: Array.isArray(extractedUrls) ? extractedUrls : [],
     });
 
     console.log("/api/links/check-safety after manual analysis:", {
@@ -45,6 +49,7 @@ async function postCheckUrlSafety(req, res, next) {
       expandedUrl: result.expandedUrl,
       expandedManualAnalysis: result.expandedManualAnalysis,
       manualAnalysis: result.manualAnalysis,
+      sslCertificate: result.sslCertificate,
     });
 
     const manualRiskLevel = result.manualAnalysis?.riskLevel || "low";
@@ -86,6 +91,9 @@ async function postCheckUrlSafety(req, res, next) {
       originalManualAnalysis: result.originalManualAnalysis,
       expandedManualAnalysis: result.expandedManualAnalysis,
       manualAnalysis: result.manualAnalysis,
+      originalSslCertificate: result.originalSslCertificate,
+      expandedSslCertificate: result.expandedSslCertificate,
+      sslCertificate: result.sslCertificate,
       googleVerdict: result.googleVerdict,
     });
   } catch (err) {
@@ -98,4 +106,27 @@ async function postCheckUrlSafety(req, res, next) {
   }
 }
 
-module.exports = { postScanLink, postCheckUrlSafety };
+async function postGetSslCertificate(req, res, next) {
+  try {
+    const { url } = req.body;
+
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ ok: false, error: "url is required" });
+    }
+
+    const certificate = await getSslCertificateDetails(url);
+
+    return res.json({
+      ok: true,
+      url,
+      certificate,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: err.message || "SSL certificate lookup failed",
+    });
+  }
+}
+
+module.exports = { postScanLink, postCheckUrlSafety, postGetSslCertificate };
