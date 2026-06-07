@@ -32,6 +32,8 @@ const shortenerHosts = new Set([
   "cutt.ly",
   "is.gd",
   "tiny.cc",
+  "did.li",
+  "s.id",
 ]);
 
 function getHostname(value) {
@@ -72,6 +74,78 @@ function formatBrandName(brand = "") {
   return brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : "";
 }
 
+function extractBrandFromUnofficialFinding(findings = []) {
+  for (const finding of findings) {
+    const unofficialDomainMatch = String(finding).match(
+      /זוהה שימוש בשם הדומה למותג\s+(.+?)\s+בדומיין שאינו רשמי/u,
+    );
+
+    if (unofficialDomainMatch) {
+      return {
+        brand: unofficialDomainMatch[1],
+        domain: "",
+      };
+    }
+  }
+
+  return null;
+}
+
+function formatSslDate(value = "") {
+  if (!value) {
+    return "\u05dc\u05d0 \u05d6\u05de\u05d9\u05df";
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return parsedDate.toLocaleString("he-IL");
+}
+
+function getSslStatusLabel(certificate) {
+  if (!certificate) {
+    return "\u05dc\u05d0 \u05d4\u05ea\u05e7\u05d1\u05dc \u05de\u05d9\u05d3\u05e2";
+  }
+
+  return certificate.hasHttps ? "\u05db\u05df" : "\u05dc\u05d0";
+}
+
+function getSslCertificateLabel(certificate) {
+  if (!certificate) {
+    return "\u05dc\u05d0 \u05d4\u05ea\u05e7\u05d1\u05dc \u05de\u05d9\u05d3\u05e2";
+  }
+
+  return certificate.hasCertificate ? "\u05db\u05df" : "\u05dc\u05d0";
+}
+
+function hasFinding(findings = [], expectedFinding = "") {
+  return findings.some((finding) => String(finding).includes(expectedFinding));
+}
+
+function getPrimaryLinkWarning({ findings = [], isShortened = false, impersonation = null }) {
+  if (hasFinding(findings, "שם הדומיין לא תואם לתעודת ה-SSL")) {
+    return "נמצאה בעיית אבטחה בתעודת ה-SSL של הקישור.";
+  }
+
+  if (hasFinding(findings, "תעודת ה-SSL אינה בתוקף או שפג תוקפה")) {
+    return "נמצאה בעיית אבטחה בתעודת ה-SSL של הקישור.";
+  }
+
+  if (impersonation) {
+    return `נמצאה התחזות למותג ${formatBrandName(
+      impersonation.brand,
+    )} בקישור.`;
+  }
+
+  if (isShortened) {
+    return "הקישור מסתיר יעד אמיתי ונמצא חשוד";
+  }
+
+  return "הקישור סומן כחשוד על בסיס בדיקות האבטחה.";
+}
+
 export default function Result() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,11 +158,13 @@ export default function Result() {
     urlAnalysis = false,
     originalMessage = "",
     extractedUrls = [],
+    checkedLinks = [],
     urlThreats = [],
     apiError,
   } = location.state || {};
 
   const isSuspicious = Boolean(textAnalysis || urlAnalysis);
+  const allCheckedLinks = Array.isArray(checkedLinks) ? checkedLinks : [];
   const flaggedLinks = Array.isArray(urlThreats) ? urlThreats : [];
   const analysisEntries = Object.entries(analysis);
 
@@ -96,10 +172,29 @@ export default function Result() {
     isShortenedUrl(item?.originalUrl || item?.url || ""),
   );
   const brandThreat = flaggedLinks.find((item) =>
-    Boolean(extractBrandImpersonation(item?.manualAnalysis?.findings || [])),
+    Boolean(
+      extractBrandImpersonation(item?.manualAnalysis?.findings || []) ||
+        extractBrandFromUnofficialFinding(item?.manualAnalysis?.findings || []),
+    ),
+  );
+  const sslThreat = flaggedLinks.find((item) =>
+    hasFinding(item?.manualAnalysis?.findings || [], "שם הדומיין לא תואם לתעודת ה-SSL") ||
+    hasFinding(item?.manualAnalysis?.findings || [], "תעודת ה-SSL אינה בתוקף או שפג תוקפה"),
+  );
+
+  const nonHttpsLink = allCheckedLinks.find(
+    (item) => item?.sslCertificate?.hasHttps === false,
   );
 
   const alertContent = useMemo(() => {
+    if (!isSuspicious && nonHttpsLink) {
+      return {
+        title: "לא זוהו סימני פישינג מובהקים",
+        description:
+          "לא נמצאו סימני פישינג מובהקים, אך הקישור אינו משתמש ב-HTTPS.",
+      };
+    }
+
     if (!isSuspicious) {
       return {
         title: "לא זוהו סימנים חשודים",
@@ -109,9 +204,9 @@ export default function Result() {
     }
 
     if (shortenedThreat && brandThreat) {
-      const impersonation = extractBrandImpersonation(
-        brandThreat.manualAnalysis?.findings || [],
-      );
+      const impersonation =
+        extractBrandImpersonation(brandThreat.manualAnalysis?.findings || []) ||
+        extractBrandFromUnofficialFinding(brandThreat.manualAnalysis?.findings || []);
 
       return {
         title: "⚠️ זוהה ניסיון פישינג",
@@ -122,15 +217,26 @@ export default function Result() {
     }
 
     if (brandThreat) {
-      const impersonation = extractBrandImpersonation(
-        brandThreat.manualAnalysis?.findings || [],
-      );
+      const impersonation =
+        extractBrandImpersonation(brandThreat.manualAnalysis?.findings || []) ||
+        extractBrandFromUnofficialFinding(brandThreat.manualAnalysis?.findings || []);
 
       return {
         title: "⚠️ זוהה ניסיון פישינג",
         description: `הקישור שנבדק נראה כהתחזות ל־${formatBrandName(
           impersonation?.brand || "מותג מוכר",
         )}. אין ללחוץ עליו או למסור פרטים.`,
+      };
+    }
+
+    if (sslThreat) {
+      const sslFindings = sslThreat.manualAnalysis?.findings || [];
+
+      return {
+        title: "⚠️ זוהתה בעיית אבטחה בקישור",
+        description: hasFinding(sslFindings, "שם הדומיין לא תואם לתעודת ה-SSL")
+          ? "שם הדומיין אינו תואם לתעודת ה-SSL של האתר."
+          : "נמצאה בעיית אבטחה בתעודת ה-SSL של הקישור.",
       };
     }
 
@@ -147,7 +253,7 @@ export default function Result() {
       description:
         "זוהו סימנים ברורים של ניסיון פישינג בתוכן או בקישורים. אין ללחוץ על קישורים או למסור פרטים.",
     };
-  }, [brandThreat, isSuspicious, shortenedThreat]);
+  }, [brandThreat, isSuspicious, nonHttpsLink, shortenedThreat, sslThreat]);
 
   const recommendations = isSuspicious
     ? [
@@ -289,20 +395,33 @@ export default function Result() {
                       {extractedUrls.length > 0 ? (
                         <div className="mt-3 space-y-2">
                           {extractedUrls.map((url, index) => {
-                            const flagged = flaggedLinks.find((item) => item.url === url);
+                            const checkedLink =
+                              allCheckedLinks.find((item) => item.url === url) ||
+                              flaggedLinks.find((item) => item.url === url) ||
+                              null;
+                            const flagged = checkedLink?.safe === false;
                             const isExpanded = Boolean(expandedLinks[url]);
-                            const isShortened = flagged
-                              ? isShortenedUrl(flagged.originalUrl || url)
+                            const isShortened = checkedLink
+                              ? isShortenedUrl(checkedLink.originalUrl || url)
                               : false;
-                            const impersonation = flagged
+                            const impersonation = checkedLink
                               ? extractBrandImpersonation(
-                                  flagged.manualAnalysis?.findings || [],
+                                  checkedLink.manualAnalysis?.findings || [],
+                                ) ||
+                                extractBrandFromUnofficialFinding(
+                                  checkedLink.manualAnalysis?.findings || [],
                                 )
                               : null;
                             const finalDestination =
-                              flagged?.expandedUrl && flagged.expandedUrl !== flagged.originalUrl
-                                ? flagged.expandedUrl
+                              checkedLink?.expandedUrl &&
+                              checkedLink.expandedUrl !== checkedLink.originalUrl
+                                ? checkedLink.expandedUrl
                                 : "";
+                            const primaryWarning = getPrimaryLinkWarning({
+                              findings: checkedLink?.manualAnalysis?.findings || [],
+                              isShortened,
+                              impersonation,
+                            });
 
                             return (
                               <div
@@ -322,9 +441,7 @@ export default function Result() {
 
                                       {flagged ? (
                                         <div className="mt-1 space-y-1.5">
-                                          <p className="text-danger-600">
-                                            ⚠️ הקישור מסתיר יעד אמיתי ונמצא חשוד
-                                          </p>
+                                          <p className="text-danger-600">⚠️ {primaryWarning}</p>
 
                                           {finalDestination && (
                                             <p className="break-all text-gray-700">
@@ -339,7 +456,9 @@ export default function Result() {
                                             <p className="text-danger-700">
                                               ⚠️ התחזות ל־
                                               {formatBrandName(impersonation.brand)}{" "}
-                                              (דומיין אמיתי: {impersonation.domain})
+                                              {impersonation.domain
+                                                ? `(דומיין אמיתי: ${impersonation.domain})`
+                                                : ""}
                                             </p>
                                           )}
                                         </div>
@@ -361,7 +480,7 @@ export default function Result() {
                                     </span>
                                   </div>
 
-                                  {flagged && (
+                                  {checkedLink && (
                                     <>
                                       <button
                                         type="button"
@@ -385,21 +504,56 @@ export default function Result() {
                                                 {finalDestination && (
                                                   <div>
                                                     <p className="mb-1 font-semibold">יעד שנחשף</p>
-                                                    <p className="break-all">{flagged.expandedUrl}</p>
+                                                    <p className="break-all">{checkedLink.expandedUrl}</p>
                                                   </div>
                                                 )}
 
                                                 <div>
                                                   <p className="mb-1 font-semibold">סיבות לזיהוי</p>
-                                                  <ul className="list-disc space-y-1 pr-4">
-                                                    {(flagged.manualAnalysis?.findings || []).map(
-                                                      (finding, findingIndex) => (
-                                                        <li key={`${url}-finding-${findingIndex}`}>
-                                                          {finding}
-                                                        </li>
-                                                      ),
-                                                    )}
-                                                  </ul>
+                                                  {(checkedLink.manualAnalysis?.findings || [])
+                                                    .length > 0 ? (
+                                                    <ul className="list-disc space-y-1 pr-4">
+                                                      {(checkedLink.manualAnalysis?.findings || []).map(
+                                                        (finding, findingIndex) => (
+                                                          <li key={`${url}-finding-${findingIndex}`}>
+                                                            {finding}
+                                                          </li>
+                                                        ),
+                                                      )}
+                                                    </ul>
+                                                  ) : (
+                                                    <p>לא נמצאו ממצאים חשודים בניתוח הידני.</p>
+                                                  )}
+                                                </div>
+
+                                                <div>
+                                                  <p className="mb-1 font-semibold">תעודת SSL</p>
+                                                  {checkedLink.sslCertificate?.hasHttps === false ? (
+                                                    <p className="mt-2 text-xs text-gray-600">
+                                                      הקישור לא משתמש ב-HTTPS
+                                                    </p>
+                                                  ) : (
+                                                    <ul className="list-disc space-y-1 pr-4">
+                                                      <li>
+                                                        קיימת תעודת SSL:{" "}
+                                                        {getSslCertificateLabel(
+                                                          checkedLink.sslCertificate,
+                                                        )}
+                                                      </li>
+                                                      <li>
+                                                        תעודת SSL בתוקף:{" "}
+                                                        {checkedLink.sslCertificate?.certificateValid
+                                                          ? "כן"
+                                                          : "לא"}
+                                                      </li>
+                                                    </ul>
+                                                  )}
+                                                  {checkedLink.sslCertificate?.error &&
+                                                    checkedLink.sslCertificate?.hasHttps !== false && (
+                                                    <p className="mt-2 text-xs text-gray-600">
+                                                      לא ניתן לבדוק את תעודת ה-SSL
+                                                    </p>
+                                                  )}
                                                 </div>
 
                                                 <div>
@@ -407,17 +561,17 @@ export default function Result() {
                                                   <ul className="list-disc space-y-1 pr-4">
                                                     <li>
                                                       {isShortened
-                                                        ? "Bitly expansion: בוצע ניסיון לחשוף את היעד המקוצר."
-                                                        : "Bitly expansion: לא נדרש עבור קישור שאינו מקוצר."}
+                                                        ? "Short URL expansion: בוצע ניסיון לחשוף את היעד המקוצר."
+                                                        : "Short URL expansion: לא נדרש עבור קישור שאינו מקוצר."}
                                                     </li>
                                                     <li>
                                                       manual analysis: רמת הסיכון שזוהתה היא{" "}
-                                                      {flagged.manualAnalysis?.riskLevel || "לא זוהתה"}.
+                                                      {checkedLink.manualAnalysis?.riskLevel || "לא זוהתה"}.
                                                     </li>
                                                     <li>
                                                       Google Safe Browsing:{" "}
-                                                      {flagged.googleVerdict?.safe === false
-                                                        ? `זוהו איומים (${(flagged.googleVerdict?.threats || []).join(", ")})`
+                                                      {checkedLink.googleVerdict?.safe === false
+                                                        ? `זוהו איומים (${(checkedLink.googleVerdict?.threats || []).join(", ")})`
                                                         : "לא זוהה איום בשירות."}
                                                     </li>
                                                   </ul>
