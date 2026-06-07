@@ -37,6 +37,8 @@ export default function History() {
     "cutt.ly",
     "is.gd",
     "tiny.cc",
+    "did.li",
+    "s.id",
   ]);
 
   const getHostname = (value) => {
