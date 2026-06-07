@@ -84,6 +84,23 @@ const googleVerdictSchema = z.object({
   checks: z.array(z.any()).optional(),
 });
 
+const sslCertificateSchema = z.object({
+  hasHttps: z.boolean().optional(),
+  hasCertificate: z.boolean().optional(),
+  certificateValid: z.boolean().optional(),
+  isExpired: z.boolean().optional(),
+  daysUntilExpiry: z.number().nullable().optional(),
+  hostnameMatchesCertificate: z.boolean().optional(),
+  validFrom: z.string().optional(),
+  validTo: z.string().optional(),
+  issuer: z.string().optional(),
+  subject: z.string().optional(),
+  subjectAltName: z.string().optional(),
+  fingerprint: z.string().optional(),
+  serialNumber: z.string().optional(),
+  error: z.string().optional(),
+});
+
 const checkedLinkSchema = z.object({
   url: urlString.optional(),
   originalUrl: urlString.optional(),
@@ -93,6 +110,7 @@ const checkedLinkSchema = z.object({
   threats: z.array(z.string()).optional(),
   manualAnalysis: manualAnalysisSchema.nullable().optional(),
   googleVerdict: googleVerdictSchema.nullable().optional(),
+  sslCertificate: sslCertificateSchema.nullable().optional(),
 });
 
 const saveHistorySchema = z.object({
