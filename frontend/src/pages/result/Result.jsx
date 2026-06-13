@@ -124,6 +124,24 @@ function hasFinding(findings = [], expectedFinding = "") {
   return findings.some((finding) => String(finding).includes(expectedFinding));
 }
 
+function isFlaggedLink(link = {}) {
+  if (!link || typeof link !== "object") {
+    return false;
+  }
+
+  if (link.safe === false || link.manualUnsafe === true) {
+    return true;
+  }
+
+  const ssl = link.sslCertificate || {};
+  if (ssl.hasHttps === false) return true;
+  if (ssl.hasCertificate === false) return true;
+  if (ssl.certificateValid === false || ssl.isExpired === true) return true;
+  if (ssl.hostnameMatchesCertificate === false) return true;
+
+  return link.googleVerdict?.safe === false;
+}
+
 function getPrimaryLinkWarning({ findings = [], isShortened = false, impersonation = null }) {
   if (hasFinding(findings, "שם הדומיין לא תואם לתעודת ה-SSL")) {
     return "נמצאה בעיית אבטחה בתעודת ה-SSL של הקישור.";
@@ -163,9 +181,9 @@ export default function Result() {
     apiError,
   } = location.state || {};
 
-  const isSuspicious = Boolean(textAnalysis || urlAnalysis);
   const allCheckedLinks = Array.isArray(checkedLinks) ? checkedLinks : [];
-  const flaggedLinks = Array.isArray(urlThreats) ? urlThreats : [];
+  const flaggedLinks = allCheckedLinks.filter((item) => isFlaggedLink(item));
+  const isSuspicious = Boolean(textAnalysis || urlAnalysis || flaggedLinks.length > 0);
   const analysisEntries = Object.entries(analysis);
 
   const shortenedThreat = flaggedLinks.find((item) =>
@@ -399,7 +417,7 @@ export default function Result() {
                               allCheckedLinks.find((item) => item.url === url) ||
                               flaggedLinks.find((item) => item.url === url) ||
                               null;
-                            const flagged = checkedLink?.safe === false;
+                            const flagged = isFlaggedLink(checkedLink);
                             const isExpanded = Boolean(expandedLinks[url]);
                             const isShortened = checkedLink
                               ? isShortenedUrl(checkedLink.originalUrl || url)

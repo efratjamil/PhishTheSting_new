@@ -68,6 +68,16 @@ const REDIRECT_PARAMS = new Set([
   "callback",
 ]);
 
+const DNS_FAILURE_CODES = new Set(["ENOTFOUND", "EAI_AGAIN"]);
+const CONNECTIVITY_FAILURE_CODES = new Set([
+  ...DNS_FAILURE_CODES,
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+]);
+
 // חשוב: זה חייב להיות קונפיגורציה שלך, לא רשימת "כל העולם".
 // לפרויקט אקדמי/מוצר MVP בחרי סט מותגים רלוונטי.
 function normalizeHost(hostname) {
@@ -244,6 +254,20 @@ function labelHasMixedScripts(label) {
   return scripts.size > 1 && scripts.has("Latin");
 }
 
+function getBrandAliases(rule = {}) {
+  return [...new Set([rule.displayName, ...(rule.aliases || [])])]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
+function getOfficialDomains(rule = {}) {
+  return new Set(
+    (rule.officialDomains || []).map((domain) =>
+      String(domain || "").toLowerCase(),
+    ),
+  );
+}
+
 function detectBrandRisk(hostname, registrableDomain, brandConfig) {
   const findings = [];
   let score = 0;
@@ -338,6 +362,92 @@ function detectPathLookalikeRisk(parsedUrl, registrableDomain, brandConfig) {
   return { findings, score };
 }
 
+function detectPathBrandLookalikeRisk(parsedUrl, registrableDomain, brandConfig) {
+  const findings = [];
+  let score = 0;
+  const pathTokens = tokenize(parsedUrl.pathname);
+  const tokenCandidates = [...pathTokens];
+
+  for (let index = 0; index < pathTokens.length - 1; index += 1) {
+    tokenCandidates.push(`${pathTokens[index]}${pathTokens[index + 1]}`);
+  }
+
+  for (const token of tokenCandidates) {
+    const tokenVisualSkeleton = skeleton(token).replace(/i/g, "l");
+    if (!tokenVisualSkeleton || tokenVisualSkeleton.length < 3) continue;
+
+    for (const rule of brandConfig) {
+      if (getOfficialDomains(rule).has(registrableDomain)) continue;
+
+      let matchedBrand = false;
+
+      for (const alias of getBrandAliases(rule)) {
+        const normalizedAlias = alias.toLowerCase();
+        const aliasVisualSkeleton = skeleton(alias).replace(/i/g, "l");
+
+        if (tokenVisualSkeleton !== aliasVisualSkeleton) continue;
+        if (token.toLowerCase() === normalizedAlias) continue;
+
+        findings.push(
+          `׳”׳˜׳•׳§׳ "${token}" ׳‘׳ ׳×׳™׳‘ ׳ ׳¨׳׳” ׳›׳׳• ׳”׳׳•׳×׳’ "${rule.displayName}" ׳׳ ׳ ׳›׳×׳‘ ׳‘׳¦׳•׳¨׳” ׳׳‘׳׳‘׳׳×`,
+        );
+        score += 24;
+        matchedBrand = true;
+        break;
+      }
+
+      if (matchedBrand) {
+        break;
+      }
+    }
+  }
+
+  return { findings, score };
+}
+
+function getSslErrorCode(sslCertificate = {}) {
+  if (!sslCertificate || typeof sslCertificate !== "object") {
+    return "";
+  }
+
+  return String(sslCertificate.errorCode || "").toUpperCase();
+}
+
+function hasDnsResolutionFailure(sslCertificate = {}) {
+  return DNS_FAILURE_CODES.has(getSslErrorCode(sslCertificate));
+}
+
+function hasConnectivityFailure(sslCertificate = {}) {
+  return CONNECTIVITY_FAILURE_CODES.has(getSslErrorCode(sslCertificate));
+}
+
+function hasCriticalSslIssue(sslCertificate = {}) {
+  if (!sslCertificate || typeof sslCertificate !== "object") {
+    return false;
+  }
+
+  if (sslCertificate.hasHttps === false) return true;
+  if (sslCertificate.hasCertificate === false) return true;
+  if (sslCertificate.certificateValid === false || sslCertificate.isExpired === true) {
+    return true;
+  }
+  if (sslCertificate.hostnameMatchesCertificate === false) return true;
+
+  return hasConnectivityFailure(sslCertificate);
+}
+
+function isManualAnalysisUnsafe(analysis = {}, sslCertificate = null) {
+  if (!analysis || typeof analysis !== "object") {
+    return false;
+  }
+
+  if (analysis.riskLevel && analysis.riskLevel !== "low") {
+    return true;
+  }
+
+  return hasCriticalSslIssue(sslCertificate);
+}
+
 function detectExternalRedirect(parsedUrl) {
   const findings = [];
   let score = 0;
@@ -412,6 +522,26 @@ function applySslSignals(analysis, sslCertificate) {
     addSslFinding(35, "שם הדומיין לא תואם לתעודת ה-SSL");
   }
 
+  if (sslCertificate.hasHttps === false) {
+    nextScore += 20;
+  } else if (sslCertificate.hasHttps === true && sslCertificate.hasCertificate === false) {
+    nextScore += 10;
+  }
+
+  if (
+    sslCertificate.hasCertificate === true &&
+    (sslCertificate.certificateValid === false || sslCertificate.isExpired === true)
+  ) {
+    nextScore += 15;
+  }
+
+  if (
+    sslCertificate.hasCertificate === true &&
+    sslCertificate.hostnameMatchesCertificate === false
+  ) {
+    nextScore += 10;
+  }
+
   const updatedAnalysis = makeResult({
     ...analysis,
     riskScore: nextScore,
@@ -426,6 +556,46 @@ function applySslSignals(analysis, sslCertificate) {
     sslCertificate,
     sslFindings,
   };
+}
+
+function applyReachabilitySignals(analysis, sslCertificate) {
+  if (!analysis || !sslCertificate) {
+    return analysis;
+  }
+
+  const nextFindings = [...(analysis.findings || [])];
+  let nextScore = analysis.riskScore || 0;
+
+  const addFinding = (points, message) => {
+    nextScore += points;
+    nextFindings.push(message);
+  };
+
+  if (sslCertificate.hasHttps === false) {
+    nextScore = Math.max(nextScore, 30);
+  } else if (sslCertificate.hasHttps === true && sslCertificate.hasCertificate === false) {
+    if (hasDnsResolutionFailure(sslCertificate)) {
+      addFinding(20, "הדומיין לא נמצא או שלא ניתן לאמת את הקישור");
+    } else if (hasConnectivityFailure(sslCertificate)) {
+      addFinding(15, "לא ניתן להגיע לשרת או לאמת את הקישור");
+    } else {
+      addFinding(5, "לא נמצאה תעודת SSL תקינה לקישור");
+    }
+  }
+
+  if (
+    sslCertificate.hasCertificate === true &&
+    (sslCertificate.certificateValid === false || sslCertificate.isExpired === true)
+  ) {
+    addFinding(15, "תעודת ה-SSL אינה בתוקף או שפג תוקפה");
+  }
+
+  return makeResult({
+    ...analysis,
+    riskScore: nextScore,
+    findings: [...new Set(nextFindings)],
+    sslCertificate,
+  });
 }
 
 function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
@@ -594,6 +764,14 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
   findings.push(...brandSignals.findings);
 
   // 17. פרמטרי redirect החוצה
+  const pathLookalikeRisk = detectPathBrandLookalikeRisk(
+    parsed,
+    registrableDomain,
+    brandConfig,
+  );
+  score += pathLookalikeRisk.score;
+  findings.push(...pathLookalikeRisk.findings);
+
   const redirectRisk = detectExternalRedirect(parsed);
   score += redirectRisk.score;
   findings.push(...redirectRisk.findings);
@@ -967,6 +1145,7 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
 
   const originalSslApplied = applySslSignals(originalManual, originalSslCertificate);
   originalManual = originalSslApplied.analysis;
+  originalManual = applyReachabilitySignals(originalManual, originalSslCertificate);
 
   const expandedSslCertificate =
     expanded.finalUrl === inputUrl
@@ -978,6 +1157,7 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
   } else {
     const expandedSslApplied = applySslSignals(expandedManual, expandedSslCertificate);
     expandedManual = expandedSslApplied.analysis;
+    expandedManual = applyReachabilitySignals(expandedManual, expandedSslCertificate);
   }
 
   const manual =
@@ -1011,4 +1191,6 @@ module.exports = {
   analyzeUrl,
   expandShortUrl,
   checkUrlWithLayers,
+  hasCriticalSslIssue,
+  isManualAnalysisUnsafe,
 };

@@ -3,6 +3,8 @@ const { URL } = require("node:url");
 
 const DEFAULT_TLS_PORT = 443;
 const DEFAULT_TIMEOUT_MS = 5000;
+const NETWORK_ERROR_CODE_PATTERN =
+  /\b(ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EHOSTUNREACH|ENETUNREACH)\b/i;
 
 function formatDistinguishedName(distinguishedName = {}) {
   if (!distinguishedName || typeof distinguishedName !== "object") {
@@ -93,7 +95,17 @@ function determineHostnameMatchesCertificate(hostname = "", certificate = {}) {
   return candidates.some((candidate) => hostnameMatchesPattern(hostname, candidate));
 }
 
-function buildFailureResult({ hasHttps, error }) {
+function extractNetworkErrorCode(error = "", explicitCode = "") {
+  if (explicitCode) {
+    return String(explicitCode).toUpperCase();
+  }
+
+  const message = String(error || "");
+  const match = message.match(NETWORK_ERROR_CODE_PATTERN);
+  return match ? match[1].toUpperCase() : "";
+}
+
+function buildFailureResult({ hasHttps, error, errorCode = "" }) {
   return {
     hasHttps,
     hasCertificate: false,
@@ -109,13 +121,14 @@ function buildFailureResult({ hasHttps, error }) {
     fingerprint: "",
     serialNumber: "",
     error,
+    errorCode: extractNetworkErrorCode(error, errorCode),
   };
 }
 
 function buildNoHttpsResult() {
   return buildFailureResult({
     hasHttps: false,
-    error: "הקישור לא משתמש ב-HTTPS",
+    error: "The URL does not use HTTPS",
   });
 }
 
@@ -127,7 +140,7 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
   } catch {
     return buildFailureResult({
       hasHttps: false,
-      error: "הקישור אינו תקין",
+      error: "The URL is invalid",
     });
   }
 
@@ -175,7 +188,7 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
             finish(
               buildFailureResult({
                 hasHttps: true,
-                error: "לא נמצאה תעודת SSL",
+                error: "No SSL certificate was presented by the server",
               }),
             );
             return;
@@ -216,7 +229,8 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
           finish(
             buildFailureResult({
               hasHttps: true,
-              error: error.message || "לא ניתן היה לקרוא את תעודת ה-SSL",
+              error: error.message || "Failed to read the SSL certificate",
+              errorCode: error.code || "",
             }),
           );
         }
@@ -227,7 +241,8 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
       finish(
         buildFailureResult({
           hasHttps: true,
-          error: error.message || "שגיאה בהתחברות לשרת לצורך קריאת תעודת SSL",
+          error: error.message || "Failed to connect to the server for SSL validation",
+          errorCode: error.code || "",
         }),
       );
     });
@@ -236,7 +251,8 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
       finish(
         buildFailureResult({
           hasHttps: true,
-          error: "הבדיקה נכשלה בגלל timeout בעת חיבור לתעודת SSL",
+          error: "SSL validation timed out while connecting to the server",
+          errorCode: "ETIMEDOUT",
         }),
       );
     }, timeoutMs);

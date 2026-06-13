@@ -319,6 +319,12 @@ const BRAND_CONFIG = [
     officialDomains: ["israelpost.co.il"],
   },
   {
+    displayName: "חברת החשמל",
+    category: "utilities",
+    aliases: ["חברת החשמל", "חשמל", "electric", "israel electric", "iec"],
+    officialDomains: ["iec.co.il"],
+  },
+  {
     displayName: "Evri",
     category: "shipping",
     aliases: ["evri", "hermes"],

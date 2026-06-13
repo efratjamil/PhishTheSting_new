@@ -64,6 +64,24 @@ const extractUrls = (text) => {
   return [...new Set(normalizedUrls)];
 };
 
+const isFlaggedLink = (link = {}) => {
+  if (!link || typeof link !== "object") {
+    return false;
+  }
+
+  if (link.safe === false || link.manualUnsafe === true) {
+    return true;
+  }
+
+  const ssl = link.sslCertificate || {};
+  if (ssl.hasHttps === false) return true;
+  if (ssl.hasCertificate === false) return true;
+  if (ssl.certificateValid === false || ssl.isExpired === true) return true;
+  if (ssl.hostnameMatchesCertificate === false) return true;
+
+  return link.googleVerdict?.safe === false;
+};
+
 export default function Analyze() {
   const [message, setMessage] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -124,6 +142,7 @@ export default function Analyze() {
         checkedLinks = responses.map((response, index) => ({
           url: extractedUrls[index],
           safe: response.data.safe,
+          manualUnsafe: response.data.manualUnsafe === true,
           threats: response.data.threats || [],
           originalUrl: response.data.originalUrl || extractedUrls[index],
           expandedUrl: response.data.expandedUrl || extractedUrls[index],
@@ -146,7 +165,7 @@ export default function Analyze() {
           .map((response, index) => ({
             ...response,
           }))
-          .filter((result) => result.safe === false);
+          .filter((result) => isFlaggedLink(result));
 
         urlAnalysis = urlThreats.length > 0;
       }

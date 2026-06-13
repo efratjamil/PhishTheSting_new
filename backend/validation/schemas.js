@@ -79,9 +79,11 @@ const manualAnalysisSchema = z.object({
 });
 
 const googleVerdictSchema = z.object({
-  safe: z.boolean().optional(),
+  safe: z.boolean().nullable().optional(),
   threats: z.array(z.string()).optional(),
   checks: z.array(z.any()).optional(),
+  unavailable: z.boolean().optional(),
+  error: z.string().optional(),
 });
 
 const sslCertificateSchema = z.object({
@@ -99,6 +101,7 @@ const sslCertificateSchema = z.object({
   fingerprint: z.string().optional(),
   serialNumber: z.string().optional(),
   error: z.string().optional(),
+  errorCode: z.string().optional(),
 });
 
 const checkedLinkSchema = z.object({
@@ -107,6 +110,7 @@ const checkedLinkSchema = z.object({
   expandedUrl: urlString.optional(),
   redirectHops: z.array(z.any()).optional(),
   safe: z.boolean().optional(),
+  manualUnsafe: z.boolean().optional(),
   threats: z.array(z.string()).optional(),
   manualAnalysis: manualAnalysisSchema.nullable().optional(),
   googleVerdict: googleVerdictSchema.nullable().optional(),
@@ -131,6 +135,8 @@ const saveHistorySchema = z.object({
 
 const urlPayloadSchema = z.object({
   url: urlString,
+  messageText: z.string().max(10000).optional(),
+  extractedUrls: z.array(urlString).max(100).optional(),
 });
 
 const aiChatSchema = z.object({
