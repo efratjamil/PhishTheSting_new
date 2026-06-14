@@ -147,7 +147,7 @@ export default function Register() {
                   />
                 </div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#337e84]">
-                  Safe onboarding
+                  הרשמה{" "}
                 </p>
                 <h1 className="mb-4 text-4xl font-bold leading-tight text-slate-900">
                   {TEXT.heroTitleLine1}
