@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_BASE_URL } from "../config/apiConfig";
 
 export const AUTH_TOKEN_KEY = "token";
 export const AUTH_USER_KEY = "user";
@@ -53,7 +54,7 @@ export async function fetchCurrentUser() {
     return null;
   }
 
-  const { data } = await axios.get("http://localhost:5000/api/auth/current-user", {
+  const { data } = await axios.get(`${API_BASE_URL}/api/auth/current-user`, {
     headers: getAuthHeaders(),
   });
 

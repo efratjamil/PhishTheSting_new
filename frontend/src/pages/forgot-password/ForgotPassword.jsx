@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -22,7 +23,7 @@ export default function ForgotPassword() {
 
     try {
       const { data } = await axios.post(
-        "http://localhost:5000/forgot-password",
+        `${API_BASE_URL}/forgot-password`,
         { email },
       );
 

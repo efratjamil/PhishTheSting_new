@@ -6,6 +6,10 @@ const {
   getFrontendBaseUrl,
   sendPasswordResetEmail,
 } = require("../services/mailService");
+const { logSecurityEvent } = require("../services/auditLogService");
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const ACCOUNT_LOCK_TIME_MS = 15 * 60 * 1000;
 
 function buildUserPayload(user) {
   return {
@@ -17,7 +21,7 @@ function buildUserPayload(user) {
 }
 
 function respondWithServerError(res) {
-  return res.status(500).json({ message: "Something went wrong" });
+  return res.status(500).json({ message: "אירעה שגיאה בשרת. נסו שוב מאוחר יותר." });
 }
 
 function signAuthToken(user) {
@@ -33,6 +37,14 @@ function signAuthToken(user) {
 
 function normalizeEmail(email = "") {
   return String(email).trim().toLowerCase();
+}
+
+function getInvalidCredentialsMessage() {
+  return "כתובת האימייל או הסיסמה שגויים";
+}
+
+function getAccountLockedMessage() {
+  return "החשבון ננעל זמנית בעקבות ניסיונות התחברות שגויים רבים. נסו שוב מאוחר יותר.";
 }
 
 function looksLikeBcryptHash(value = "") {
@@ -57,18 +69,40 @@ async function verifyPasswordAndUpgradeIfNeeded(user, password) {
   return true;
 }
 
+async function resetLoginLockState(user) {
+  if (!user || (!user.loginAttempts && !user.lockUntil)) {
+    return;
+  }
+
+  user.loginAttempts = 0;
+  user.lockUntil = null;
+  await user.save();
+}
+
+function isAccountLocked(user) {
+  return Boolean(user?.lockUntil && user.lockUntil > new Date());
+}
+
 exports.register = async (req, res) => {
   try {
     const { firstName, lastName, password } = req.body;
     const email = normalizeEmail(req.body.email);
 
     if (!firstName || !lastName || !email || !password) {
-      return res.status(400).json({ message: "Please fill in all required fields" });
+      return res.status(400).json({ message: "יש למלא את כל השדות הנדרשים" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "Email is already registered" });
+      await logSecurityEvent({
+        req,
+        user: existingUser,
+        email,
+        action: "register",
+        status: "failed",
+        metadata: { reason: "email_already_registered" },
+      });
+      return res.status(400).json({ message: "כתובת האימייל כבר רשומה במערכת" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -81,8 +115,14 @@ exports.register = async (req, res) => {
     });
 
     await newUser.save();
+    await logSecurityEvent({
+      req,
+      user: newUser,
+      action: "register",
+      status: "success",
+    });
 
-    return res.status(201).json({ message: "Registered successfully" });
+    return res.status(201).json({ message: "ההרשמה הושלמה בהצלחה" });
   } catch (err) {
     console.error("register error:", err);
     return respondWithServerError(res);
@@ -93,16 +133,101 @@ exports.login = async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     const { password } = req.body;
+    const invalidCredentialsMessage = getInvalidCredentialsMessage();
 
     const user = await User.findOne({ email });
-    if (!user || !(await verifyPasswordAndUpgradeIfNeeded(user, password))) {
-      return res.status(400).json({ message: "Invalid email or password" });
+    if (!user) {
+      await logSecurityEvent({
+        req,
+        email,
+        action: "login",
+        status: "failed",
+        metadata: { reason: "invalid_credentials" },
+      });
+      return res.status(400).json({ message: invalidCredentialsMessage });
     }
 
+    if (user.lockUntil && user.lockUntil <= new Date()) {
+      user.loginAttempts = 0;
+      user.lockUntil = null;
+      await user.save();
+    }
+
+    if (isAccountLocked(user)) {
+      await logSecurityEvent({
+        req,
+        user,
+        action: "login",
+        status: "blocked",
+        metadata: {
+          reason: "account_locked",
+          lockUntil: user.lockUntil,
+        },
+      });
+      return res.status(423).json({ message: getAccountLockedMessage() });
+    }
+
+    const passwordMatches = await verifyPasswordAndUpgradeIfNeeded(user, password);
+
+    if (!passwordMatches) {
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+
+      const metadata = {
+        reason: "invalid_credentials",
+        loginAttempts: user.loginAttempts,
+        attemptsRemaining: Math.max(MAX_LOGIN_ATTEMPTS - user.loginAttempts, 0),
+      };
+
+      let responseStatus = 400;
+      let responseMessage = invalidCredentialsMessage;
+
+      if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.lockUntil = new Date(Date.now() + ACCOUNT_LOCK_TIME_MS);
+        responseStatus = 423;
+        responseMessage = getAccountLockedMessage();
+      }
+
+      await user.save();
+
+      await logSecurityEvent({
+        req,
+        user,
+        action: "login",
+        status: responseStatus === 423 ? "blocked" : "failed",
+        metadata: {
+          ...metadata,
+          ...(user.lockUntil ? { lockUntil: user.lockUntil } : {}),
+        },
+      });
+
+      if (responseStatus === 423) {
+        await logSecurityEvent({
+          req,
+          user,
+          action: "account_lockout",
+          status: "blocked",
+          metadata: {
+            loginAttempts: user.loginAttempts,
+            lockUntil: user.lockUntil,
+          },
+        });
+      }
+
+      return res.status(responseStatus).json({ message: responseMessage });
+    }
+
+    await resetLoginLockState(user);
+
     const token = signAuthToken(user);
+    await logSecurityEvent({
+      req,
+      user,
+      action: "login",
+      status: "success",
+    });
 
     return res.status(200).json({
-      message: "Logged in successfully",
+      message: "התחברת בהצלחה",
       token,
       user: buildUserPayload(user),
     });
@@ -115,12 +240,12 @@ exports.login = async (req, res) => {
 exports.getCurrentUser = async (req, res) => {
   try {
     if (!req.user?.userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "נדרש אימות משתמש" });
     }
 
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "נדרש אימות משתמש" });
     }
 
     return res.status(200).json({
@@ -137,18 +262,33 @@ exports.updatePassword = async (req, res) => {
     const { newPassword } = req.body;
 
     if (!req.user?.userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "נדרש אימות משתמש" });
     }
 
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      await logSecurityEvent({
+        req,
+        userId: req.user.userId,
+        action: "password_change",
+        status: "failed",
+        metadata: { reason: "user_not_found" },
+      });
+      return res.status(404).json({ message: "המשתמש לא נמצא" });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
+    user.loginAttempts = 0;
+    user.lockUntil = null;
     await user.save();
+    await logSecurityEvent({
+      req,
+      user,
+      action: "password_change",
+      status: "success",
+    });
 
-    return res.status(200).json({ message: "Password updated successfully" });
+    return res.status(200).json({ message: "הסיסמה עודכנה בהצלחה" });
   } catch (err) {
     console.error("updatePassword error:", err);
     return respondWithServerError(res);
@@ -161,12 +301,19 @@ exports.updateProfile = async (req, res) => {
     const email = typeof req.body.email === "string" ? normalizeEmail(req.body.email) : undefined;
 
     if (!req.user?.userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "נדרש אימות משתמש" });
     }
 
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      await logSecurityEvent({
+        req,
+        userId: req.user.userId,
+        action: "profile_update",
+        status: "failed",
+        metadata: { reason: "user_not_found" },
+      });
+      return res.status(404).json({ message: "המשתמש לא נמצא" });
     }
 
     if (typeof firstName === "string" && firstName.trim()) {
@@ -180,16 +327,30 @@ exports.updateProfile = async (req, res) => {
     if (typeof email === "string" && email && email !== user.email) {
       const existing = await User.findOne({ email });
       if (existing) {
-        return res.status(400).json({ message: "Email is already in use" });
+        await logSecurityEvent({
+          req,
+          user,
+          email,
+          action: "profile_update",
+          status: "failed",
+          metadata: { reason: "email_already_in_use" },
+        });
+        return res.status(400).json({ message: "כתובת האימייל כבר נמצאת בשימוש" });
       }
 
       user.email = email;
     }
 
     await user.save();
+    await logSecurityEvent({
+      req,
+      user,
+      action: "profile_update",
+      status: "success",
+    });
 
     return res.status(200).json({
-      message: "Profile updated successfully",
+      message: "הפרופיל עודכן בהצלחה",
       user: buildUserPayload(user),
     });
   } catch (err) {
@@ -206,10 +367,17 @@ exports.forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
 
     const successMessage =
-      "If an account with that email exists, a password reset link has been sent.";
+      "אם קיים חשבון עם כתובת האימייל הזו, נשלח קישור לאיפוס סיסמה.";
 
     if (!user) {
       console.log("forgotPassword: user not found, returning generic response");
+      await logSecurityEvent({
+        req,
+        email,
+        action: "password_reset_request",
+        status: "failed",
+        metadata: { reason: "account_not_found" },
+      });
       return res.status(200).json({ message: successMessage });
     }
 
@@ -233,6 +401,17 @@ exports.forgotPassword = async (req, res) => {
       delivered: mailResult.delivered,
       fallback: mailResult.fallback,
       failed: mailResult.failed,
+    });
+    await logSecurityEvent({
+      req,
+      user,
+      action: "password_reset_request",
+      status: "success",
+      metadata: {
+        delivered: mailResult.delivered,
+        fallback: mailResult.fallback,
+        failed: mailResult.failed,
+      },
     });
 
     return res.status(200).json({
@@ -258,15 +437,29 @@ exports.resetPasswordWithToken = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Reset link is invalid or expired" });
+      await logSecurityEvent({
+        req,
+        action: "password_reset",
+        status: "failed",
+        metadata: { reason: "invalid_or_expired_token" },
+      });
+      return res.status(400).json({ message: "קישור איפוס הסיסמה אינו תקין או שפג תוקפו" });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
+    user.loginAttempts = 0;
+    user.lockUntil = null;
     user.resetPasswordToken = null;
     user.resetPasswordExpiresAt = null;
     await user.save();
+    await logSecurityEvent({
+      req,
+      user,
+      action: "password_reset",
+      status: "success",
+    });
 
-    return res.status(200).json({ message: "Password updated successfully" });
+    return res.status(200).json({ message: "הסיסמה עודכנה בהצלחה" });
   } catch (err) {
     console.error("resetPasswordWithToken error:", err);
     return respondWithServerError(res);

@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { logSecurityEvent } = require("../services/auditLogService");
 
 function extractBearerToken(authorizationHeader = "") {
   if (typeof authorizationHeader !== "string") {
@@ -14,11 +15,21 @@ function extractBearerToken(authorizationHeader = "") {
   return token;
 }
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const token = extractBearerToken(req.headers.authorization);
 
   if (!token) {
-    return res.status(401).json({ message: "Authentication token is required" });
+    await logSecurityEvent({
+      req,
+      action: "protected_route_access",
+      status: "failed",
+      metadata: {
+        reason: "missing_token",
+        path: req.originalUrl,
+        method: req.method,
+      },
+    });
+    return res.status(401).json({ message: "נדרש טוקן אימות" });
   }
 
   try {
@@ -30,7 +41,17 @@ function authenticateToken(req, res, next) {
     req.user = decoded;
     return next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid or expired authentication token" });
+    await logSecurityEvent({
+      req,
+      action: "protected_route_access",
+      status: "failed",
+      metadata: {
+        reason: "invalid_or_expired_token",
+        path: req.originalUrl,
+        method: req.method,
+      },
+    });
+    return res.status(401).json({ message: "טוקן האימות אינו תקין או שפג תוקפו" });
   }
 }
 

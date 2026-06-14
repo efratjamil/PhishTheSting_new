@@ -9,8 +9,8 @@ const router = express.Router();
 
 router.post(
   "/chat",
-  aiChatLimiter,
   authenticateToken,
+  aiChatLimiter,
   validateRequest(aiChatSchema),
   postAiChat,
 );

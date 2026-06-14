@@ -12,22 +12,22 @@ const { urlPayloadSchema } = require("../validation/schemas");
 
 router.post(
   "/check-safety",
-  linkSafetyLimiter,
   authenticateToken,
+  linkSafetyLimiter,
   validateRequest(urlPayloadSchema),
   postCheckUrlSafety,
 );
 router.post(
   "/scan",
-  linkSafetyLimiter,
   authenticateToken,
+  linkSafetyLimiter,
   validateRequest(urlPayloadSchema),
   postScanLink,
 );
 router.post(
   "/ssl-certificate",
-  linkSafetyLimiter,
   authenticateToken,
+  linkSafetyLimiter,
   validateRequest(urlPayloadSchema),
   postGetSslCertificate,
 );

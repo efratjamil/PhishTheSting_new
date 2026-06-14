@@ -18,6 +18,7 @@ import {
   getAuthHeaders,
   getStoredUser,
 } from "../../utils/auth";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 const tips = [
   "בדקו תמיד מי שלח את ההודעה והאם הכתובת נראית אמינה.",
@@ -49,7 +50,7 @@ export default function Dashboard() {
     const fetchDashboard = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:5000/api/analyze/dashboard",
+          `${API_BASE_URL}/api/analyze/dashboard`,
           {
             headers: getAuthHeaders(),
           },

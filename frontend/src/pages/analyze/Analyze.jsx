@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Button from "../../components/ui/Button";
 import { getAuthHeaders, getStoredUser } from "../../utils/auth";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 const findUrlLikeSegments = (text) => {
   const sourceText = String(text);
@@ -98,7 +99,7 @@ export default function Analyze() {
       const user = getStoredUser();
 
       const textResponse = await axios.post(
-        "http://localhost:5000/api/analyze",
+        `${API_BASE_URL}/api/analyze`,
         {
           message,
         },
@@ -121,7 +122,7 @@ export default function Analyze() {
         const responses = await Promise.all(
           extractedUrls.map((url) =>
             axios.post(
-              "http://localhost:5000/api/links/check-safety",
+              `${API_BASE_URL}/api/links/check-safety`,
               {
                 url,
                 messageText: message,
@@ -176,7 +177,7 @@ export default function Analyze() {
       if (user?.id) {
         try {
           await axios.post(
-            "http://localhost:5000/api/analyze/history",
+            `${API_BASE_URL}/api/analyze/history`,
             {
               message,
               summary,

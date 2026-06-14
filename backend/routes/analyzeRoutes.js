@@ -17,20 +17,20 @@ const {
 
 router.post(
   "/",
-  analyzeLimiter,
   authenticateToken,
+  analyzeLimiter,
   validateRequest(analyzeMessageSchema),
   analyzeMessage,
 );
 router.post(
   "/history",
-  historyLimiter,
   authenticateToken,
+  historyLimiter,
   validateRequest(saveHistorySchema),
   saveAnalysisHistory,
 );
-router.get("/dashboard", historyLimiter, authenticateToken, getUserDashboardStats);
-router.get("/history", historyLimiter, authenticateToken, getUserHistory);
-router.delete("/history/:id", historyLimiter, authenticateToken, deleteHistoryItem);
+router.get("/dashboard", authenticateToken, historyLimiter, getUserDashboardStats);
+router.get("/history", authenticateToken, historyLimiter, getUserHistory);
+router.delete("/history/:id", authenticateToken, historyLimiter, deleteHistoryItem);
 
 module.exports = router;

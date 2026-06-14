@@ -7,6 +7,7 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
 import { storeAuthSession } from "../../utils/auth";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -28,7 +29,7 @@ export default function Login() {
     setError(null);
 
     try {
-      const { data } = await axios.post("http://localhost:5000/login", formData);
+      const { data } = await axios.post(`${API_BASE_URL}/login`, formData);
 
       if (data.user && data.token) {
         storeAuthSession({ user: data.user, token: data.token });

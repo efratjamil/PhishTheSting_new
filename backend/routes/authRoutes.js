@@ -33,15 +33,15 @@ router.post(
 );
 router.post(
   "/update-password",
-  updateProfileLimiter,
   authenticateToken,
+  updateProfileLimiter,
   validateRequest(updatePasswordSchema),
   authController.updatePassword,
 );
 router.post(
   "/update-profile",
-  updateProfileLimiter,
   authenticateToken,
+  updateProfileLimiter,
   validateRequest(updateProfileSchema),
   authController.updateProfile,
 );

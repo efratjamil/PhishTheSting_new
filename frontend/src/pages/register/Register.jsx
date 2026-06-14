@@ -16,6 +16,7 @@ import {
   isValidEmail,
   isStrongPassword,
 } from "../../utils/validation";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 const TEXT = {
   firstNameRequired: "שם פרטי נדרש",
@@ -92,7 +93,7 @@ export default function Register() {
     setLoading(true);
     setErrors({});
     try {
-      await axios.post("http://localhost:5000/register", formData);
+      await axios.post(`${API_BASE_URL}/register`, formData);
       setSuccess(true);
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {

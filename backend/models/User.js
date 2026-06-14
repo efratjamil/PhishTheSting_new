@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema({
   lastName: { type: String, required: true },
   email: { type: String, required: true, unique: true, trim: true, lowercase: true },
   password: { type: String, required: true },
+  loginAttempts: { type: Number, default: 0 },
+  lockUntil: { type: Date, default: null },
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpiresAt: { type: Date, default: null },
 });

@@ -24,6 +24,7 @@ import {
   storeAuthSession,
 } from "../../utils/auth";
 import { isStrongPassword } from "../../utils/validation";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -73,7 +74,7 @@ export default function Profile() {
     const fetchDashboardStats = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:5000/api/analyze/dashboard",
+          `${API_BASE_URL}/api/analyze/dashboard`,
           {
             headers: getAuthHeaders(),
           }
@@ -172,7 +173,7 @@ export default function Profile() {
     setSuccess(null);
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/update-password",
+        `${API_BASE_URL}/api/auth/update-password`,
         {
           newPassword: passwordData.newPassword,
         },
@@ -207,7 +208,7 @@ export default function Profile() {
     setSuccess(null);
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/update-profile",
+        `${API_BASE_URL}/api/auth/update-profile`,
         {
           firstName: profileData.firstName,
           lastName: profileData.lastName,

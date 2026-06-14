@@ -16,6 +16,7 @@ import {
   getAuthHeaders,
   getStoredUser,
 } from "../../utils/auth";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function History() {
   const [history, setHistory] = useState([]);
@@ -87,7 +88,7 @@ export default function History() {
     const fetchHistory = async () => {
       try {
         const { data } = await axios.get(
-          "http://localhost:5000/api/analyze/history",
+          `${API_BASE_URL}/api/analyze/history`,
           {
             headers: getAuthHeaders(),
           }
@@ -169,7 +170,7 @@ export default function History() {
     setError(null);
 
     try {
-      await axios.delete(`http://localhost:5000/api/analyze/history/${historyId}`, {
+      await axios.delete(`${API_BASE_URL}/api/analyze/history/${historyId}`, {
         headers: getAuthHeaders(),
       });
 

@@ -8,6 +8,7 @@ import Input from "../../components/ui/Input";
 import Alert from "../../components/ui/Alert";
 import PasswordRequirements from "../../components/ui/PasswordRequirements";
 import { isStrongPassword } from "../../utils/validation";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export default function ResetPassword() {
 
     try {
       const { data } = await axios.post(
-        "http://localhost:5000/reset-password",
+        `${API_BASE_URL}/reset-password`,
         {
           token,
           newPassword: formData.newPassword,

@@ -3,10 +3,12 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChatBubbleLeftRightIcon,
+  InformationCircleIcon,
   PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import Alert from "./Alert";
 import { getAuthHeaders } from "../../utils/auth";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 const quickQuestions = [
   "האם ההודעה הזו מסוכנת?",
@@ -61,7 +63,7 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
 
     try {
       const { data } = await axios.post(
-        "http://localhost:5000/api/ai/chat",
+        `${API_BASE_URL}/api/ai/chat`,
         {
           message: sourceMessage,
           analysis: analysisPayload,
@@ -101,7 +103,23 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center space-x-3 text-lg font-semibold text-gray-900 rtl:space-x-reverse lg:text-xl">
           <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-600" />
-          <span>שאל את הצ'אט</span>
+          <span className="flex items-center gap-2">
+            <span>שאל את הצ'אט</span>
+            <span className="group relative inline-flex">
+              <button
+                type="button"
+                className="rounded-full text-slate-400 transition-colors hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                aria-label="מידע על תשובות הבינה המלאכותית"
+              >
+                <InformationCircleIcon className="h-4 w-4" />
+              </button>
+
+              <span className="pointer-events-none absolute right-0 top-full z-10 mt-2 w-72 max-w-[80vw] rounded-xl bg-slate-900 px-3 py-2 text-xs font-normal leading-5 text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                התשובות מבוססות בינה מלאכותית ונועדו לסייע בהבנת תוצאות
+                הניתוח. יש להפעיל שיקול דעת ולא להסתמך עליהן בלבד.
+              </span>
+            </span>
+          </span>
         </h2>
         <button
           type="button"

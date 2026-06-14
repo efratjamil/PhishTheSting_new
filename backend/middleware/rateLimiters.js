@@ -1,4 +1,5 @@
 const rateLimit = require("express-rate-limit");
+const { logSecurityEvent } = require("../services/auditLogService");
 
 function createLimiter(windowMs, max, message) {
   return rateLimit({
@@ -6,8 +7,27 @@ function createLimiter(windowMs, max, message) {
     max,
     standardHeaders: true,
     legacyHeaders: false,
+    handler: async (req, res) => {
+      await logSecurityEvent({
+        req,
+        action: "rate_limit_exceeded",
+        status: "blocked",
+        metadata: {
+          path: req.originalUrl,
+          method: req.method,
+          maxAttempts: max,
+          windowMs,
+        },
+      });
+
+      return res.status(429).json({
+        error: message,
+        message,
+      });
+    },
     message: {
       error: message,
+      message,
     },
   });
 }
