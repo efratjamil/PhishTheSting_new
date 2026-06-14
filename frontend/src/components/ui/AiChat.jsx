@@ -32,7 +32,8 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
   const messagesEndRef = useRef(null);
 
   const canSend = useMemo(
-    () => Boolean(question.trim()) && Boolean(sourceMessage?.trim()) && !isLoading,
+    () =>
+      Boolean(question.trim()) && Boolean(sourceMessage?.trim()) && !isLoading,
     [isLoading, question, sourceMessage],
   );
 
@@ -59,13 +60,17 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
     setIsLoading(true);
 
     try {
-      const { data } = await axios.post("http://localhost:5000/api/ai/chat", {
-        message: sourceMessage,
-        analysis: analysisPayload,
-        question: finalQuestion,
-      }, {
-        headers: getAuthHeaders(),
-      });
+      const { data } = await axios.post(
+        "http://localhost:5000/api/ai/chat",
+        {
+          message: sourceMessage,
+          analysis: analysisPayload,
+          question: finalQuestion,
+        },
+        {
+          headers: getAuthHeaders(),
+        },
+      );
 
       setMessages((current) => [
         ...current,
@@ -76,7 +81,9 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
         },
       ]);
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "שגיאה בקבלת תשובה מהבוט.");
+      setError(
+        requestError.response?.data?.error || "שגיאה בקבלת תשובה מהבוט.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +101,7 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center space-x-3 text-lg font-semibold text-gray-900 rtl:space-x-reverse lg:text-xl">
           <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-600" />
-          <span>Ask the Bot</span>
+          <span>שאל את הצ'אט</span>
         </h2>
         <button
           type="button"
@@ -142,7 +149,9 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
                     <div
                       key={`${message.role}-${message.timestamp}-${index}`}
                       className={`flex ${
-                        message.role === "user" ? "justify-end" : "justify-start"
+                        message.role === "user"
+                          ? "justify-end"
+                          : "justify-start"
                       }`}
                     >
                       <div
@@ -152,7 +161,9 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
                             : "rounded-bl-md border border-gray-200 bg-white text-gray-800"
                         }`}
                       >
-                        <p className="text-sm leading-6 whitespace-pre-wrap">{message.text}</p>
+                        <p className="text-sm leading-6 whitespace-pre-wrap">
+                          {message.text}
+                        </p>
                         <p
                           className={`mt-2 text-[11px] ${
                             message.role === "user"

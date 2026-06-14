@@ -7,6 +7,9 @@ const { parse: parseDomain } = require("tldts");
 const {
   BRAND_CONFIG,
   analyzeUrlBrandSignals,
+  extractBrandCandidatesFromText,
+  detectBrandDetections,
+  isOfficialDomainMatch,
 } = require("../brand/brandDetector");
 const {
   resolveBrandImpersonationWithGemini,
@@ -28,6 +31,7 @@ const SHORTENER_HOSTS = new Set([
   "tiny.cc",
   "did.li",
   "s.id",
+  "clck.ru",
 ]);
 
 const SUSPICIOUS_WORDS = [
@@ -944,6 +948,85 @@ function messageHasFinancialPressure(messageText = "") {
   ].some((term) => normalized.includes(term));
 }
 
+function getMessageBrandDetections(messageText = "", brandConfig = BRAND_CONFIG) {
+  if (!messageText || typeof messageText !== "string") {
+    return [];
+  }
+
+  const candidates = extractBrandCandidatesFromText(messageText);
+  const { detections } = detectBrandDetections(candidates, brandConfig);
+  const unique = new Map();
+
+  for (const detection of detections) {
+    if (detection.source !== "message") continue;
+    if (!detection.detectedBrand || !Array.isArray(detection.officialDomains)) continue;
+
+    const existing = unique.get(detection.detectedBrand);
+    if (!existing || detection.confidence > existing.confidence) {
+      unique.set(detection.detectedBrand, detection);
+    }
+  }
+
+  return [...unique.values()];
+}
+
+function applyMessageBrandMismatch(analysis, messageText = "", brandConfig = BRAND_CONFIG) {
+  if (!analysis || !messageText) {
+    return analysis;
+  }
+
+  const hostname = analysis.hostname || analysis.registrableDomain || "";
+  if (!hostname) {
+    return analysis;
+  }
+
+  const messageBrands = getMessageBrandDetections(messageText, brandConfig);
+  if (messageBrands.length === 0) {
+    return analysis;
+  }
+
+  const mismatchedBrands = messageBrands.filter(
+    (detection) => !isOfficialDomainMatch(hostname, detection.officialDomains || []),
+  );
+
+  if (mismatchedBrands.length === 0) {
+    return analysis;
+  }
+
+  return makeResult({
+    ...analysis,
+    riskScore: (analysis.riskScore || 0) + 18,
+    findings: [
+      ...new Set([
+        ...(analysis.findings || []),
+        "ההודעה מזכירה מותג מוכר אך הקישור אינו מוביל לדומיין הרשמי של המותג",
+      ]),
+    ],
+    messageBrandMismatch: mismatchedBrands.map((detection) => detection.detectedBrand),
+  });
+}
+
+function applyKnownShortenerWarning(analysis) {
+  if (!analysis) {
+    return analysis;
+  }
+
+  const candidateUrl = analysis.normalizedUrl || analysis.input || "";
+  if (!candidateUrl || !isKnownShortenerUrl(candidateUrl)) {
+    return analysis;
+  }
+
+  return makeResult({
+    ...analysis,
+    findings: [
+      ...new Set([
+        ...(analysis.findings || []),
+        "הקישור הוא קישור מקוצר ועלול להסתיר את כתובת היעד האמיתית",
+      ]),
+    ],
+  });
+}
+
 function shouldSkipGeminiForKnownShortenerPlatform(analysis = {}, candidateBrand = "") {
   const hostname = normalizeHost(analysis.hostname || "");
   const registrableDomain = (analysis.registrableDomain || hostname || "").toLowerCase();
@@ -1094,12 +1177,32 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
     }
   }
 
-  let originalManual = analyzeUrl(inputUrl);
+  if (
+    isKnownShortenerUrl(inputUrl) &&
+    expanded.finalUrl === inputUrl &&
+    (!Array.isArray(expanded.hops) || expanded.hops.length === 0)
+  ) {
+    expanded = {
+      ...expanded,
+      expansionScoreDelta: Math.max(expanded.expansionScoreDelta || 0, 12),
+      expansionFinding:
+        expanded.expansionFinding ||
+        "הקישור הוא קישור מקוצר ולא ניתן היה לחשוף את יעדו הסופי",
+    };
+  }
+
+  let originalManual = applyKnownShortenerWarning(analyzeUrl(inputUrl));
   let expandedManual =
-    expanded.finalUrl === inputUrl ? originalManual : analyzeUrl(expanded.finalUrl);
+    expanded.finalUrl === inputUrl
+      ? originalManual
+      : applyKnownShortenerWarning(analyzeUrl(expanded.finalUrl));
 
   if (expanded.expansionFinding) {
-    expandedManual.findings = [...expandedManual.findings, expanded.expansionFinding];
+    expandedManual = makeResult({
+      ...expandedManual,
+      riskScore: expandedManual.riskScore + (expanded.expansionScoreDelta || 0),
+      findings: [...expandedManual.findings, expanded.expansionFinding],
+    });
   }
 
   const shortenerInterstitial = detectShortenerInterstitial(expanded);
@@ -1120,6 +1223,21 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
         "בשילוב עם שפה של חוב/תשלום בהודעה, קישור מקוצר שמסתיר יעד מאחורי דף ביניים נחשב חשוד במיוחד.",
       ],
     });
+  }
+
+  if (expanded.finalUrl === inputUrl) {
+    originalManual = applyMessageBrandMismatch(
+      originalManual,
+      context.messageText || "",
+      BRAND_CONFIG,
+    );
+    expandedManual = originalManual;
+  } else {
+    expandedManual = applyMessageBrandMismatch(
+      expandedManual,
+      context.messageText || "",
+      BRAND_CONFIG,
+    );
   }
 
   const [originalSslCertificate, expandedSslCertificateRaw] = await Promise.all([

@@ -50,7 +50,9 @@ function isShortenedUrl(value) {
 
 function extractBrandImpersonation(findings = []) {
   for (const finding of findings) {
-    const tokenMatch = finding.match(/שם המותג "([^"]+)".*הדומיין הרשום הוא "([^"]+)"/);
+    const tokenMatch = finding.match(
+      /שם המותג "([^"]+)".*הדומיין הרשום הוא "([^"]+)"/,
+    );
     if (tokenMatch) {
       return {
         brand: tokenMatch[1],
@@ -58,7 +60,9 @@ function extractBrandImpersonation(findings = []) {
       };
     }
 
-    const similarMatch = finding.match(/הדומיין הרשום "([^"]+)".*למותג "([^"]+)"/);
+    const similarMatch = finding.match(
+      /הדומיין הרשום "([^"]+)".*למותג "([^"]+)"/,
+    );
     if (similarMatch) {
       return {
         brand: similarMatch[2],
@@ -142,7 +146,11 @@ function isFlaggedLink(link = {}) {
   return link.googleVerdict?.safe === false;
 }
 
-function getPrimaryLinkWarning({ findings = [], isShortened = false, impersonation = null }) {
+function getPrimaryLinkWarning({
+  findings = [],
+  isShortened = false,
+  impersonation = null,
+}) {
   if (hasFinding(findings, "שם הדומיין לא תואם לתעודת ה-SSL")) {
     return "נמצאה בעיית אבטחה בתעודת ה-SSL של הקישור.";
   }
@@ -152,9 +160,7 @@ function getPrimaryLinkWarning({ findings = [], isShortened = false, impersonati
   }
 
   if (impersonation) {
-    return `נמצאה התחזות למותג ${formatBrandName(
-      impersonation.brand,
-    )} בקישור.`;
+    return `נמצאה התחזות למותג ${formatBrandName(impersonation.brand)} בקישור.`;
   }
 
   if (isShortened) {
@@ -183,7 +189,9 @@ export default function Result() {
 
   const allCheckedLinks = Array.isArray(checkedLinks) ? checkedLinks : [];
   const flaggedLinks = allCheckedLinks.filter((item) => isFlaggedLink(item));
-  const isSuspicious = Boolean(textAnalysis || urlAnalysis || flaggedLinks.length > 0);
+  const isSuspicious = Boolean(
+    textAnalysis || urlAnalysis || flaggedLinks.length > 0,
+  );
   const analysisEntries = Object.entries(analysis);
 
   const shortenedThreat = flaggedLinks.find((item) =>
@@ -195,9 +203,16 @@ export default function Result() {
         extractBrandFromUnofficialFinding(item?.manualAnalysis?.findings || []),
     ),
   );
-  const sslThreat = flaggedLinks.find((item) =>
-    hasFinding(item?.manualAnalysis?.findings || [], "שם הדומיין לא תואם לתעודת ה-SSL") ||
-    hasFinding(item?.manualAnalysis?.findings || [], "תעודת ה-SSL אינה בתוקף או שפג תוקפה"),
+  const sslThreat = flaggedLinks.find(
+    (item) =>
+      hasFinding(
+        item?.manualAnalysis?.findings || [],
+        "שם הדומיין לא תואם לתעודת ה-SSL",
+      ) ||
+      hasFinding(
+        item?.manualAnalysis?.findings || [],
+        "תעודת ה-SSL אינה בתוקף או שפג תוקפה",
+      ),
   );
 
   const nonHttpsLink = allCheckedLinks.find(
@@ -224,7 +239,9 @@ export default function Result() {
     if (shortenedThreat && brandThreat) {
       const impersonation =
         extractBrandImpersonation(brandThreat.manualAnalysis?.findings || []) ||
-        extractBrandFromUnofficialFinding(brandThreat.manualAnalysis?.findings || []);
+        extractBrandFromUnofficialFinding(
+          brandThreat.manualAnalysis?.findings || [],
+        );
 
       return {
         title: "⚠️ זוהה ניסיון פישינג",
@@ -237,7 +254,9 @@ export default function Result() {
     if (brandThreat) {
       const impersonation =
         extractBrandImpersonation(brandThreat.manualAnalysis?.findings || []) ||
-        extractBrandFromUnofficialFinding(brandThreat.manualAnalysis?.findings || []);
+        extractBrandFromUnofficialFinding(
+          brandThreat.manualAnalysis?.findings || [],
+        );
 
       return {
         title: "⚠️ זוהה ניסיון פישינג",
@@ -278,7 +297,7 @@ export default function Result() {
         "אל תמסור פרטים אישיים או סיסמאות.",
         "אל תלחץ על קישורים או קבצים לא מזוהים.",
         "בדוק את כתובת השולח והאם יש שגיאות כתיב.",
-        "אם צריך, דווח על ההודעה לגורם אבטחה או למנהל.",
+        "אמתו את הבקשה באתר הרשמי לפני ביצוע פעולה.",
       ]
     : [
         "לא זוהתה אינדיקציה ברורה לסיכון, אבל כדאי להישאר זהירים.",
@@ -357,7 +376,9 @@ export default function Result() {
                       )}
 
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="font-medium text-gray-900">תוכן ההודעה</span>
+                        <span className="font-medium text-gray-900">
+                          תוכן ההודעה
+                        </span>
                         <span
                           className={`rounded-full border px-3 py-1 text-sm font-medium ${
                             textAnalysis
@@ -398,7 +419,9 @@ export default function Result() {
 
                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-900">קישורים</span>
+                        <span className="font-medium text-gray-900">
+                          קישורים
+                        </span>
                         <span
                           className={`rounded-full border px-3 py-1 text-sm font-medium ${
                             urlAnalysis
@@ -414,7 +437,9 @@ export default function Result() {
                         <div className="mt-3 space-y-2">
                           {extractedUrls.map((url, index) => {
                             const checkedLink =
-                              allCheckedLinks.find((item) => item.url === url) ||
+                              allCheckedLinks.find(
+                                (item) => item.url === url,
+                              ) ||
                               flaggedLinks.find((item) => item.url === url) ||
                               null;
                             const flagged = isFlaggedLink(checkedLink);
@@ -432,11 +457,13 @@ export default function Result() {
                               : null;
                             const finalDestination =
                               checkedLink?.expandedUrl &&
-                              checkedLink.expandedUrl !== checkedLink.originalUrl
+                              checkedLink.expandedUrl !==
+                                checkedLink.originalUrl
                                 ? checkedLink.expandedUrl
                                 : "";
                             const primaryWarning = getPrimaryLinkWarning({
-                              findings: checkedLink?.manualAnalysis?.findings || [],
+                              findings:
+                                checkedLink?.manualAnalysis?.findings || [],
                               isShortened,
                               impersonation,
                             });
@@ -455,17 +482,24 @@ export default function Result() {
 
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0 flex-1">
-                                      <div className="break-all text-gray-800">{url}</div>
+                                      <div className="break-all text-gray-800">
+                                        {url}
+                                      </div>
 
                                       {flagged ? (
                                         <div className="mt-1 space-y-1.5">
-                                          <p className="text-danger-600">⚠️ {primaryWarning}</p>
+                                          <p className="text-danger-600">
+                                            ⚠️ {primaryWarning}
+                                          </p>
 
                                           {finalDestination && (
                                             <p className="break-all text-gray-700">
                                               הקישור מוביל ל:{" "}
                                               <span className="font-medium">
-                                                {finalDestination.replace(/^https?:\/\//i, "")}
+                                                {finalDestination.replace(
+                                                  /^https?:\/\//i,
+                                                  "",
+                                                )}
                                               </span>
                                             </p>
                                           )}
@@ -473,7 +507,9 @@ export default function Result() {
                                           {impersonation && (
                                             <p className="text-danger-700">
                                               ⚠️ התחזות ל־
-                                              {formatBrandName(impersonation.brand)}{" "}
+                                              {formatBrandName(
+                                                impersonation.brand,
+                                              )}{" "}
                                               {impersonation.domain
                                                 ? `(דומיין אמיתי: ${impersonation.domain})`
                                                 : ""}
@@ -505,48 +541,79 @@ export default function Result() {
                                         onClick={() => toggleLinkDetails(url)}
                                         className="w-fit text-xs font-medium text-blue-600 transition-colors hover:text-blue-700"
                                       >
-                                        {isExpanded ? "הסתר פרטים" : "פרטים נוספים"}
+                                        {isExpanded
+                                          ? "הסתר פרטים"
+                                          : "פרטים נוספים"}
                                       </button>
 
                                       <AnimatePresence initial={false}>
                                         {isExpanded && (
                                           <motion.div
                                             initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: "auto", opacity: 1 }}
+                                            animate={{
+                                              height: "auto",
+                                              opacity: 1,
+                                            }}
                                             exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.25, ease: "easeOut" }}
+                                            transition={{
+                                              duration: 0.25,
+                                              ease: "easeOut",
+                                            }}
                                             className="overflow-hidden"
                                           >
                                             <div className="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
                                               <div className="space-y-3 text-xs text-gray-700">
                                                 {finalDestination && (
                                                   <div>
-                                                    <p className="mb-1 font-semibold">יעד שנחשף</p>
-                                                    <p className="break-all">{checkedLink.expandedUrl}</p>
+                                                    <p className="mb-1 font-semibold">
+                                                      יעד שנחשף
+                                                    </p>
+                                                    <p className="break-all">
+                                                      {checkedLink.expandedUrl}
+                                                    </p>
                                                   </div>
                                                 )}
 
                                                 <div>
-                                                  <p className="mb-1 font-semibold">סיבות לזיהוי</p>
-                                                  {(checkedLink.manualAnalysis?.findings || [])
-                                                    .length > 0 ? (
+                                                  <p className="mb-1 font-semibold">
+                                                    סיבות לזיהוי
+                                                  </p>
+                                                  {(
+                                                    checkedLink.manualAnalysis
+                                                      ?.findings || []
+                                                  ).length > 0 ? (
                                                     <ul className="list-disc space-y-1 pr-4">
-                                                      {(checkedLink.manualAnalysis?.findings || []).map(
-                                                        (finding, findingIndex) => (
-                                                          <li key={`${url}-finding-${findingIndex}`}>
+                                                      {(
+                                                        checkedLink
+                                                          .manualAnalysis
+                                                          ?.findings || []
+                                                      ).map(
+                                                        (
+                                                          finding,
+                                                          findingIndex,
+                                                        ) => (
+                                                          <li
+                                                            key={`${url}-finding-${findingIndex}`}
+                                                          >
                                                             {finding}
                                                           </li>
                                                         ),
                                                       )}
                                                     </ul>
                                                   ) : (
-                                                    <p>לא נמצאו ממצאים חשודים בניתוח הידני.</p>
+                                                    <p>
+                                                      לא נמצאו ממצאים חשודים
+                                                      בניתוח הידני.
+                                                    </p>
                                                   )}
                                                 </div>
 
                                                 <div>
-                                                  <p className="mb-1 font-semibold">תעודת SSL</p>
-                                                  {checkedLink.sslCertificate?.hasHttps === false ? (
+                                                  <p className="mb-1 font-semibold">
+                                                    תעודת SSL
+                                                  </p>
+                                                  {checkedLink.sslCertificate
+                                                    ?.hasHttps === false ? (
                                                     <p className="mt-2 text-xs text-gray-600">
                                                       הקישור לא משתמש ב-HTTPS
                                                     </p>
@@ -560,22 +627,29 @@ export default function Result() {
                                                       </li>
                                                       <li>
                                                         תעודת SSL בתוקף:{" "}
-                                                        {checkedLink.sslCertificate?.certificateValid
+                                                        {checkedLink
+                                                          .sslCertificate
+                                                          ?.certificateValid
                                                           ? "כן"
                                                           : "לא"}
                                                       </li>
                                                     </ul>
                                                   )}
-                                                  {checkedLink.sslCertificate?.error &&
-                                                    checkedLink.sslCertificate?.hasHttps !== false && (
-                                                    <p className="mt-2 text-xs text-gray-600">
-                                                      לא ניתן לבדוק את תעודת ה-SSL
-                                                    </p>
-                                                  )}
+                                                  {checkedLink.sslCertificate
+                                                    ?.error &&
+                                                    checkedLink.sslCertificate
+                                                      ?.hasHttps !== false && (
+                                                      <p className="mt-2 text-xs text-gray-600">
+                                                        לא ניתן לבדוק את תעודת
+                                                        ה-SSL
+                                                      </p>
+                                                    )}
                                                 </div>
 
                                                 <div>
-                                                  <p className="mb-1 font-semibold">שכבות הזיהוי</p>
+                                                  <p className="mb-1 font-semibold">
+                                                    שכבות הזיהוי
+                                                  </p>
                                                   <ul className="list-disc space-y-1 pr-4">
                                                     <li>
                                                       {isShortened
@@ -583,12 +657,18 @@ export default function Result() {
                                                         : "Short URL expansion: לא נדרש עבור קישור שאינו מקוצר."}
                                                     </li>
                                                     <li>
-                                                      manual analysis: רמת הסיכון שזוהתה היא{" "}
-                                                      {checkedLink.manualAnalysis?.riskLevel || "לא זוהתה"}.
+                                                      manual analysis: רמת
+                                                      הסיכון שזוהתה היא{" "}
+                                                      {checkedLink
+                                                        .manualAnalysis
+                                                        ?.riskLevel ||
+                                                        "לא זוהתה"}
+                                                      .
                                                     </li>
                                                     <li>
                                                       Google Safe Browsing:{" "}
-                                                      {checkedLink.googleVerdict?.safe === false
+                                                      {checkedLink.googleVerdict
+                                                        ?.safe === false
                                                         ? `זוהו איומים (${(checkedLink.googleVerdict?.threats || []).join(", ")})`
                                                         : "לא זוהה איום בשירות."}
                                                     </li>
@@ -640,7 +720,10 @@ export default function Result() {
                           key={index}
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.65 + index * 0.08, duration: 0.45 }}
+                          transition={{
+                            delay: 0.65 + index * 0.08,
+                            duration: 0.45,
+                          }}
                           className="flex items-start space-x-3 rtl:space-x-reverse"
                         >
                           <span
