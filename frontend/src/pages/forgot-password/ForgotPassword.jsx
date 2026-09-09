@@ -88,7 +88,6 @@ export default function ForgotPassword() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="your@email.com"
               inputProps={{ dir: "ltr" }}
             />
 

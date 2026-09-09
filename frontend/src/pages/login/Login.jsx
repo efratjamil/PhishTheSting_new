@@ -83,7 +83,6 @@ export default function Login() {
               required
               className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#449ba2] focus:border-[#449ba2] transition-colors duration-200"
               inputProps={{ dir: "ltr" }}
-              placeholder="your@email.com"
             />
 
             <div className="relative">
