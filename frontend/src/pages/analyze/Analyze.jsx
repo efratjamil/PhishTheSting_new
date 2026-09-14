@@ -160,6 +160,7 @@ export default function Analyze() {
             : null,
           googleVerdict: response.data.googleVerdict || null,
           sslCertificate: response.data.sslCertificate || null,
+          marketingClassification: response.data.marketingClassification || null,
         }));
 
         urlThreats = checkedLinks
@@ -171,7 +172,18 @@ export default function Analyze() {
         urlAnalysis = urlThreats.length > 0;
       }
 
-      const finalSafe = !(hasTextFindings || urlAnalysis);
+      const legitimateMarketing =
+        checkedLinks.length > 0 &&
+        checkedLinks.every(
+          (link) => link.marketingClassification?.isLegitimateMarketing === true
+        ) &&
+        !urlAnalysis;
+      const finalAnalysis = legitimateMarketing ? {} : analysis;
+      const finalSummary = legitimateMarketing
+        ? "\u05d6\u05d5\u05d4\u05ea\u05d4 \u05d4\u05d5\u05d3\u05e2\u05d4 \u05e9\u05d9\u05d5\u05d5\u05e7\u05d9\u05ea \u05dc\u05d2\u05d9\u05d8\u05d9\u05de\u05d9\u05ea: \u05d4\u05de\u05d5\u05ea\u05d2 \u05ea\u05d5\u05d0\u05dd \u05dc\u05d9\u05e2\u05d3 \u05d4\u05e7\u05d9\u05e9\u05d5\u05e8, \u05d5\u05dc\u05d0 \u05d6\u05d5\u05d4\u05ea\u05d4 \u05d1\u05e7\u05e9\u05d4 \u05dc\u05de\u05d9\u05d3\u05e2 \u05e8\u05d2\u05d9\u05e9."
+        : summary;
+      const finalTextAnalysis = Object.keys(finalAnalysis).length > 0;
+      const finalSafe = !(finalTextAnalysis || urlAnalysis);
       const finalStatus = finalSafe ? "safe" : "suspicious";
 
       if (user?.id) {
@@ -180,9 +192,9 @@ export default function Analyze() {
             `${API_BASE_URL}/api/analyze/history`,
             {
               message,
-              summary,
-              analysis,
-              textAnalysis: hasTextFindings,
+              summary: finalSummary,
+              analysis: finalAnalysis,
+              textAnalysis: finalTextAnalysis,
               safe: finalSafe,
               status: finalStatus,
               extractedUrls,
@@ -204,10 +216,11 @@ export default function Analyze() {
 
       navigate("/result", {
         state: {
-          analysis,
-          summary,
-          textAnalysis: hasTextFindings,
+          analysis: finalAnalysis,
+          summary: finalSummary,
+          textAnalysis: finalTextAnalysis,
           urlAnalysis,
+          legitimateMarketing,
           originalMessage: message,
           extractedUrls,
           checkedLinks,
