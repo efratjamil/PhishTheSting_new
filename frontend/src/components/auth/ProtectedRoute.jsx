@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { clearAuthSession, fetchCurrentUser, getAuthToken } from "../../utils/auth";
 
@@ -25,7 +25,7 @@ export default function ProtectedRoute({ children }) {
         if (isMounted) {
           setStatus(user ? "authenticated" : "unauthenticated");
         }
-      } catch (error) {
+      } catch {
         clearAuthSession();
         if (isMounted) {
           setStatus("unauthenticated");

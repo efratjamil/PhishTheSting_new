@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
@@ -70,6 +70,10 @@ const isFlaggedLink = (link = {}) => {
     return false;
   }
 
+  if (link.safetyStatus === "unknown") {
+    return false;
+  }
+
   if (link.marketingClassification?.isLegitimateMarketing === true) {
     return false;
   }
@@ -111,14 +115,12 @@ export default function Analyze() {
           headers: getAuthHeaders(),
         },
       );
-      console.log("/api/analyze response:", textResponse.data);
-
       const analysis = textResponse.data.analysis || {};
       const summary = textResponse.data.summary || "";
-      const hasTextFindings = Object.keys(analysis).length > 0;
       const extractedUrls = extractUrls(message);
 
       let urlAnalysis = false;
+      let urlCaution = false;
       let urlThreats = [];
       let checkedLinks = [];
 
@@ -139,14 +141,10 @@ export default function Analyze() {
           ),
         );
 
-        console.log(
-          "/api/links/check-safety responses:",
-          responses.map((response) => response.data)
-        );
-
         checkedLinks = responses.map((response, index) => ({
           url: extractedUrls[index],
           safe: response.data.safe,
+          safetyStatus: response.data.safetyStatus || "unknown",
           manualUnsafe: response.data.manualUnsafe === true,
           threats: response.data.threats || [],
           originalUrl: response.data.originalUrl || extractedUrls[index],
@@ -167,13 +165,12 @@ export default function Analyze() {
           marketingClassification: response.data.marketingClassification || null,
         }));
 
-        urlThreats = checkedLinks
-          .map((response, index) => ({
-            ...response,
-          }))
-          .filter((result) => isFlaggedLink(result));
+        urlThreats = checkedLinks.filter((result) => isFlaggedLink(result));
 
         urlAnalysis = urlThreats.length > 0;
+        urlCaution = checkedLinks.some(
+          (link) => link.safetyStatus === "unknown",
+        );
       }
 
       const legitimateMarketing =
@@ -181,14 +178,19 @@ export default function Analyze() {
         checkedLinks.every(
           (link) => link.marketingClassification?.isLegitimateMarketing === true
         ) &&
-        !urlAnalysis;
+        !urlAnalysis &&
+        !urlCaution;
       const finalAnalysis = legitimateMarketing ? {} : analysis;
       const finalSummary = legitimateMarketing
         ? "זוהתה הודעה שיווקית לגיטימית: המותג תואם ליעד הקישור, ולא זוהתה בקשה למידע רגיש."
         : summary;
       const finalTextAnalysis = Object.keys(finalAnalysis).length > 0;
-      const finalSafe = !(finalTextAnalysis || urlAnalysis);
-      const finalStatus = finalSafe ? "safe" : "suspicious";
+      const finalSafe = !(finalTextAnalysis || urlAnalysis || urlCaution);
+      const finalStatus = finalSafe
+        ? "safe"
+        : urlCaution && !finalTextAnalysis && !urlAnalysis
+          ? "caution"
+          : "suspicious";
 
       if (user?.id) {
         try {
@@ -203,6 +205,7 @@ export default function Analyze() {
               status: finalStatus,
               extractedUrls,
               urlAnalysis,
+              urlCaution,
               checkedLinks,
               urlThreats,
             },
@@ -210,11 +213,8 @@ export default function Analyze() {
               headers: getAuthHeaders(),
             }
           );
-        } catch (historyError) {
-          console.error(
-            "Failed to save history to backend:",
-            historyError.response?.data || historyError.message
-          );
+        } catch {
+          // Saving history must not block the analysis result.
         }
       }
 
@@ -224,6 +224,7 @@ export default function Analyze() {
           summary: finalSummary,
           textAnalysis: finalTextAnalysis,
           urlAnalysis,
+          urlCaution,
           legitimateMarketing,
           originalMessage: message,
           extractedUrls,
@@ -232,8 +233,6 @@ export default function Analyze() {
         },
       });
     } catch (err) {
-      console.error("Analyze flow error:", err.response?.data || err.message);
-
       navigate("/result", {
         state: {
           analysis: {},

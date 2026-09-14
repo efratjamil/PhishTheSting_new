@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -25,6 +25,11 @@ const TEXT = {
   emailInvalid: "כתובת אימייל לא תקינה",
   passwordRequired: "סיסמה נדרשת",
   passwordWeak: "הסיסמה חייבת לכלול 8 תווים, אות גדולה, מספר ותו מיוחד",
+
+  heroBody:
+    "הירשמו כדי לנתח הודעות וקישורים חשודים, לשמור היסטוריית בדיקות ולקבל הסבר ברור לכל תוצאה.",
+  compactForm: "טופס קצר וברור",
+  desktopFit: "מותאם גם למחשב",
 
   genericError: "אירעה שגיאה, נסה שוב מאוחר יותר.",
 

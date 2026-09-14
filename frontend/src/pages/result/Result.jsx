@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -95,27 +95,6 @@ function extractBrandFromUnofficialFinding(findings = []) {
   return null;
 }
 
-function formatSslDate(value = "") {
-  if (!value) {
-    return "לא זמין";
-  }
-
-  const parsedDate = new Date(value);
-  if (Number.isNaN(parsedDate.getTime())) {
-    return value;
-  }
-
-  return parsedDate.toLocaleString("he-IL");
-}
-
-function getSslStatusLabel(certificate) {
-  if (!certificate) {
-    return "לא התקבל מידע";
-  }
-
-  return certificate.hasHttps ? "כן" : "לא";
-}
-
 function getSslCertificateLabel(certificate) {
   if (!certificate) {
     return "לא התקבל מידע";
@@ -133,6 +112,10 @@ function isFlaggedLink(link = {}) {
     return false;
   }
 
+  if (link.safetyStatus === "unknown") {
+    return false;
+  }
+
   if (link.safe === false || link.manualUnsafe === true) {
     return true;
   }
@@ -140,6 +123,7 @@ function isFlaggedLink(link = {}) {
   const ssl = link.sslCertificate || {};
   if (ssl.hasHttps === false) return true;
   if (ssl.hasCertificate === false) return true;
+  if (ssl.certificateTrusted === false) return true;
   if (ssl.certificateValid === false || ssl.isExpired === true) return true;
   if (ssl.hostnameMatchesCertificate === false) return true;
 
@@ -183,8 +167,8 @@ export default function Result() {
     originalMessage = "",
     extractedUrls = [],
     checkedLinks = [],
-    urlThreats = [],
     legitimateMarketing = false,
+    urlCaution = false,
     apiError,
   } = location.state || {};
 
@@ -193,6 +177,9 @@ export default function Result() {
   const isSuspicious = Boolean(
     textAnalysis || urlAnalysis || flaggedLinks.length > 0,
   );
+  const hasUnknownLink =
+    urlCaution || allCheckedLinks.some((item) => item?.safetyStatus === "unknown");
+  const isCaution = !isSuspicious && hasUnknownLink;
   const analysisEntries = Object.entries(analysis);
 
   const shortenedThreat = flaggedLinks.find((item) =>
@@ -226,6 +213,14 @@ export default function Result() {
         title: "הודעה שיווקית לגיטימית",
         description:
           "המותג שהוזכר בהודעה תואם ליעד שאליו הקישור הורחב, ולא זוהתה בקשה למידע רגיש.",
+      };
+    }
+
+    if (isCaution) {
+      return {
+        title: "לא ניתן להשלים את בדיקת הבטיחות",
+        description:
+          "Google Safe Browsing אינו זמין כרגע. לא נמצאו סימני פישינג אחרים, אך אין לסווג את הקישור כתקין לפני בדיקה חוזרת.",
       };
     }
 
@@ -299,7 +294,7 @@ export default function Result() {
       description:
         "זוהו סימנים ברורים של ניסיון פישינג בתוכן או בקישורים. אין ללחוץ על קישורים או למסור פרטים.",
     };
-  }, [brandThreat, isSuspicious, legitimateMarketing, nonHttpsLink, shortenedThreat, sslThreat]);
+  }, [brandThreat, isCaution, isSuspicious, legitimateMarketing, nonHttpsLink, shortenedThreat, sslThreat]);
 
   const recommendations = isSuspicious
     ? [
@@ -355,7 +350,7 @@ export default function Result() {
 
             <div className="mb-5">
               <Alert
-                type={isSuspicious ? "error" : "success"}
+                type={isSuspicious ? "error" : isCaution ? "warning" : "success"}
                 title={alertContent.title}
                 className="px-4 py-3"
               >
