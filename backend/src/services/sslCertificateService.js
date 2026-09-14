@@ -1,5 +1,7 @@
 const tls = require("node:tls");
 const { URL } = require("node:url");
+const { isIP } = require("node:net");
+const { lookup } = require("node:dns/promises");
 
 const DEFAULT_TLS_PORT = 443;
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -109,6 +111,8 @@ function buildFailureResult({ hasHttps, error, errorCode = "" }) {
   return {
     hasHttps,
     hasCertificate: false,
+    certificateTrusted: false,
+    certificateAuthorizationError: "",
     certificateValid: false,
     isExpired: false,
     daysUntilExpiry: null,
@@ -123,6 +127,74 @@ function buildFailureResult({ hasHttps, error, errorCode = "" }) {
     error,
     errorCode: extractNetworkErrorCode(error, errorCode),
   };
+}
+
+function isPrivateOrLocalIp(address = "") {
+  const normalizedAddress = String(address).toLowerCase();
+  const version = isIP(normalizedAddress);
+
+  if (version === 4) {
+    const [first, second] = normalizedAddress.split(".").map(Number);
+    return (
+      first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168) ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 198 && (second === 18 || second === 19))
+    );
+  }
+
+  if (version === 6) {
+    if (normalizedAddress === "::" || normalizedAddress === "::1") return true;
+    if (normalizedAddress.startsWith("fc") || normalizedAddress.startsWith("fd")) {
+      return true;
+    }
+    if (normalizedAddress.startsWith("fe80:")) return true;
+
+    const mappedIpv4 = normalizedAddress.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    return mappedIpv4 ? isPrivateOrLocalIp(mappedIpv4[1]) : false;
+  }
+
+  return false;
+}
+
+async function resolvePublicTlsTarget(hostname = "") {
+  const normalizedHostname = normalizeHostname(hostname);
+
+  if (!normalizedHostname || normalizedHostname === "localhost" || normalizedHostname.endsWith(".local")) {
+    const error = new Error("The SSL target must be a public host");
+    error.code = "UNSAFE_TLS_TARGET";
+    throw error;
+  }
+
+  if (isIP(normalizedHostname)) {
+    if (isPrivateOrLocalIp(normalizedHostname)) {
+      const error = new Error("The SSL target must not use a private IP address");
+      error.code = "UNSAFE_TLS_TARGET";
+      throw error;
+    }
+
+    return { address: normalizedHostname, family: isIP(normalizedHostname) };
+  }
+
+  const addresses = await lookup(normalizedHostname, {
+    all: true,
+    verbatim: true,
+  });
+
+  if (
+    addresses.length === 0 ||
+    addresses.some(({ address }) => isPrivateOrLocalIp(address))
+  ) {
+    const error = new Error("The SSL target resolves to a private or unsafe address");
+    error.code = "UNSAFE_TLS_TARGET";
+    throw error;
+  }
+
+  return addresses[0];
 }
 
 function buildNoHttpsResult() {
@@ -155,6 +227,17 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
       ? options.timeoutMs
       : DEFAULT_TIMEOUT_MS;
 
+  let tlsTarget;
+  try {
+    tlsTarget = await resolvePublicTlsTarget(hostname);
+  } catch (error) {
+    return buildFailureResult({
+      hasHttps: true,
+      error: error.message || "The SSL target could not be validated",
+      errorCode: error.code || "",
+    });
+  }
+
   return new Promise((resolve) => {
     let settled = false;
 
@@ -175,7 +258,8 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
 
     const socket = tls.connect(
       {
-        host: hostname,
+        host: tlsTarget.address,
+        family: tlsTarget.family,
         port,
         servername: hostname,
         rejectUnauthorized: false,
@@ -210,6 +294,11 @@ async function getSslCertificateDetails(inputUrl, options = {}) {
           finish({
             hasHttps: true,
             hasCertificate: true,
+            certificateTrusted: socket.authorized === true,
+            certificateAuthorizationError:
+              socket.authorized === true
+                ? ""
+                : String(socket.authorizationError || "Certificate chain is not trusted"),
             certificateValid,
             isExpired,
             daysUntilExpiry: calculateDaysUntilExpiry(validToDate),
