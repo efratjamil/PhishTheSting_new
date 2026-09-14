@@ -1,6 +1,7 @@
 // npm i tldts
 const { URL } = require("node:url");
 const { isIP } = require("node:net");
+const { lookup } = require("node:dns/promises");
 const punycode = require("node:punycode");
 const axios = require("axios");
 const { parse: parseDomain } = require("tldts");
@@ -32,6 +33,7 @@ const SHORTENER_HOSTS = new Set([
   "did.li",
   "s.id",
   "clck.ru",
+  "snip.ly",
 ]);
 
 const SUSPICIOUS_WORDS = [
@@ -82,8 +84,40 @@ const CONNECTIVITY_FAILURE_CODES = new Set([
   "ENETUNREACH",
 ]);
 
-// חשוב: זה חייב להיות קונפיגורציה שלך, לא רשימת "כל העולם".
-// לפרויקט אקדמי/מוצר MVP בחרי סט מותגים רלוונטי.
+const SENSITIVE_REQUEST_TERMS = [
+  "password",
+  "passcode",
+  "otp",
+  "cvv",
+  "credit card",
+  "card number",
+  "personal information",
+  "סיסמה",
+  "פרטי אשראי",
+  "קוד אימות",
+  "קוד חד-פעמי",
+  "פרטים אישיים",
+];
+
+const MARKETING_TERMS = [
+  "sale",
+  "offer",
+  "discount",
+  "price",
+  "prices",
+  "product",
+  "products",
+  "unsubscribe",
+  "מבצע",
+  "הנחה",
+  "מחיר",
+  "מחירים",
+  "מוצר",
+  "מוצרים",
+  "להסרה",
+  "הסרה",
+];
+
 function normalizeHost(hostname) {
   return hostname.toLowerCase().replace(/\.$/, "");
 }
@@ -469,7 +503,6 @@ function detectExternalRedirect(parsedUrl) {
         score += 25;
       }
     } catch {
-      // אם זה לא URL תקין, פשוט מדלגים
     }
   }
 
@@ -656,12 +689,10 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
     findings.push(message);
   };
 
-  // 1. credentials לפני ה-host
   if (parsed.username || parsed.password) {
     add(35, "הקישור מכיל username/password לפני שם המארח");
   }
 
-  // 2. כתובת IP במקום דומיין
   const ipCandidate = hostname.replace(/^\[|\]$/g, "");
   if (isIP(ipCandidate)) {
     add(35, "הקישור משתמש בכתובת IP במקום בשם דומיין");
@@ -669,51 +700,42 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
 
   const isShortener = SHORTENER_HOSTS.has(registrableDomain);
 
-  // 3. shortener
   if (isShortener) {
     add(12, "הקישור מגיע משירות קיצור ולכן היעד האמיתי מוסתר בשלב הראשון");
   }
 
-  // 4. IDN / Punycode
   if (hostname.includes("xn--")) {
     add(25, "שם המתחם מכיל Punycode, ולכן נדרש לבדוק הומוגרפים ו-IDN");
   }
 
-  // 5. ערבוב סקריפטים בתוך אותה תווית
   if (unicodeHostname.split(".").some(labelHasMixedScripts)) {
     add(25, "נמצא ערבוב סקריפטים בתוך תווית אחת של הדומיין");
   }
 
-  // 6. ריבוי תתי־דומיינים
   const subCount = subdomain ? subdomain.split(".").filter(Boolean).length : 0;
   if (subCount >= 3) {
     add(18, "מספר חריג של תתי־דומיינים");
   }
 
-  // 7. אורך URL
   if (rawUrl.length >= 100) {
     add(10, "הקישור ארוך במיוחד");
   }
 
-  // 8. אנטרופיה גבוהה ב-hostname
   const hostEntropy = shannonEntropy(hostname.replace(/\./g, ""));
   if (hostEntropy >= 3.8) {
     add(15, "שם המארח נראה אקראי יחסית");
   }
 
-  // 9. יחס ספרות/אותיות
   const letters = (hostname.match(/[a-z]/gi) || []).length;
   const digits = (hostname.match(/\d/g) || []).length;
   if (letters > 0 && digits / letters >= 0.3) {
     add(10, "יחס גבוה של ספרות לאותיות בשם המתחם");
   }
 
-  // 10. מקפים רבים בדומיין הרשום
   if ((registrableDomain.match(/-/g) || []).length >= 2) {
     add(12, "ריבוי מקפים בדומיין הרשום");
   }
 
-  // 11. מילים חשודות ב-path / query
   const decodedPathAndQuery = safeDecode(
     `${parsed.pathname}${parsed.search}`,
   ).toLowerCase();
@@ -727,7 +749,6 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
     );
   }
 
-  // 12. URL נוסף בתוך path/query או // חריג
   if (
     /https?:\/\//i.test(decodedPathAndQuery) ||
     parsed.pathname.includes("//")
@@ -735,14 +756,12 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
     add(15, "הנתיב או הפרמטרים מכילים URL נוסף או // חריג");
   }
 
-  // 13. percent-encoding משמעותי
   const percentEncodedCount = (parsed.search.match(/%[0-9a-f]{2}/gi) || [])
     .length;
   if (percentEncodedCount >= 4 || /%25[0-9a-f]{2}/i.test(parsed.search)) {
     add(10, "יש שימוש משמעותי בקידוד אחוזים");
   }
 
-  // 14. מחרוזת שנראית כמו דומיין נוסף בתוך הנתיב/שאילתה
   if (
     /\b[a-z0-9-]+\.(?:com|net|org|co|io|gov|app|bank|edu)\b/i.test(
       decodedPathAndQuery,
@@ -751,23 +770,22 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
     add(8, "הנתיב או הפרמטרים מכילים מחרוזת שנראית כמו דומיין נוסף");
   }
 
-  // 15. פורט לא רגיל
   if (parsed.port && parsed.port !== defaultPort(parsed.protocol)) {
     add(10, `נעשה שימוש בפורט לא רגיל: ${parsed.port}`);
   }
 
-  // 16. התחזות למותג
   const brandSignals = analyzeUrlBrandSignals({
-    hostname,
-    registrableDomain,
-    subdomain,
+    // A trusted shortening host such as bit.ly is not an impersonation of Bit.
+    // Its expanded destination is analyzed separately below.
+    hostname: isShortener ? "" : hostname,
+    registrableDomain: isShortener ? "" : registrableDomain,
+    subdomain: isShortener ? "" : subdomain,
     pathname: parsed.pathname,
     brandConfig,
   });
   score += brandSignals.scoreDelta;
   findings.push(...brandSignals.findings);
 
-  // 17. פרמטרי redirect החוצה
   const pathLookalikeRisk = detectPathBrandLookalikeRisk(
     parsed,
     registrableDomain,
@@ -810,21 +828,12 @@ function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
   });
 }
 
-// הרחבה server-side של shorteners / redirect chains.
-// לא להריץ את זה בדפדפן של המשתמש.
 async function expandShortUrl(inputUrl, fetchImpl = fetch, maxHops = 5) {
-  if (!isKnownShortenerUrl(inputUrl)) {
-    return {
-      originalUrl: inputUrl,
-      finalUrl: inputUrl,
-      hops: [],
-    };
-  }
-
   let current = inputUrl;
   const hops = [];
 
   for (let i = 0; i < maxHops; i++) {
+    await assertSafeRedirectTarget(current);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
     let response;
@@ -836,7 +845,6 @@ async function expandShortUrl(inputUrl, fetchImpl = fetch, maxHops = 5) {
         signal: controller.signal,
       });
 
-      // יש אתרים שלא תומכים ב-HEAD
       if (response.status === 405 || response.status === 501) {
         response = await fetchImpl(current, {
           method: "GET",
@@ -856,6 +864,7 @@ async function expandShortUrl(inputUrl, fetchImpl = fetch, maxHops = 5) {
     if (!location) break;
 
     const next = new URL(location, current).toString();
+    await assertSafeRedirectTarget(next);
     hops.push({
       status: response.status,
       from: current,
@@ -970,6 +979,98 @@ function getMessageBrandDetections(messageText = "", brandConfig = BRAND_CONFIG)
   return [...unique.values()];
 }
 
+function isPrivateOrLocalIp(address = "") {
+  const normalizedAddress = String(address).toLowerCase();
+  const version = isIP(normalizedAddress);
+
+  if (version === 4) {
+    const [first, second] = normalizedAddress.split(".").map(Number);
+    return (
+      first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168) ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 198 && (second === 18 || second === 19))
+    );
+  }
+
+  if (version === 6) {
+    if (normalizedAddress === "::" || normalizedAddress === "::1") return true;
+    if (normalizedAddress.startsWith("fc") || normalizedAddress.startsWith("fd")) {
+      return true;
+    }
+    if (normalizedAddress.startsWith("fe80:")) return true;
+
+    const mappedIpv4 = normalizedAddress.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    return mappedIpv4 ? isPrivateOrLocalIp(mappedIpv4[1]) : false;
+  }
+
+  return false;
+}
+
+async function assertSafeRedirectTarget(url) {
+  const parsed = new URL(url);
+  const hostname = normalizeHost(parsed.hostname);
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw Object.assign(new Error("Unsupported redirect protocol"), {
+      code: "UNSAFE_REDIRECT_TARGET",
+    });
+  }
+
+  if (hostname === "localhost" || hostname.endsWith(".local")) {
+    throw Object.assign(new Error("Local redirect target"), {
+      code: "UNSAFE_REDIRECT_TARGET",
+    });
+  }
+
+  if (isIP(hostname)) {
+    if (isPrivateOrLocalIp(hostname)) {
+      throw Object.assign(new Error("Private redirect target"), {
+        code: "UNSAFE_REDIRECT_TARGET",
+      });
+    }
+    return;
+  }
+
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  if (addresses.length === 0 || addresses.some(({ address }) => isPrivateOrLocalIp(address))) {
+    throw Object.assign(new Error("Unsafe DNS redirect target"), {
+      code: "UNSAFE_REDIRECT_TARGET",
+    });
+  }
+}
+
+function includesAnyTerm(text = "", terms = []) {
+  const normalizedText = String(text).toLowerCase();
+  return terms.some((term) => normalizedText.includes(term.toLowerCase()));
+}
+
+function classifyLegitimateMarketingMessage({
+  messageText = "",
+  destinationAnalysis = {},
+  sslCertificate = null,
+  googleVerdict = null,
+} = {}) {
+  const hostname = destinationAnalysis.hostname || destinationAnalysis.registrableDomain || "";
+  const matchedBrands = getMessageBrandDetections(messageText)
+    .filter((brand) => isOfficialDomainMatch(hostname, brand.officialDomains || []))
+    .map((brand) => brand.detectedBrand);
+
+  const isLegitimateMarketing = Boolean(
+    matchedBrands.length > 0 &&
+      includesAnyTerm(messageText, MARKETING_TERMS) &&
+      !includesAnyTerm(messageText, SENSITIVE_REQUEST_TERMS) &&
+      !isManualAnalysisUnsafe(destinationAnalysis, sslCertificate) &&
+      googleVerdict?.safe !== false,
+  );
+
+  return { isLegitimateMarketing, matchedBrands };
+}
+
 function applyMessageBrandMismatch(analysis, messageText = "", brandConfig = BRAND_CONFIG) {
   if (!analysis || !messageText) {
     return analysis;
@@ -990,6 +1091,12 @@ function applyMessageBrandMismatch(analysis, messageText = "", brandConfig = BRA
   );
 
   if (mismatchedBrands.length === 0) {
+    return analysis;
+  }
+
+  // Mentioning a brand and linking to another site is only supporting evidence.
+  // Do not mark an otherwise low-risk destination as suspicious on this alone.
+  if ((analysis.riskScore || 0) < 20) {
     return analysis;
   }
 
@@ -1044,7 +1151,6 @@ function shouldSkipGeminiForKnownShortenerPlatform(analysis = {}, candidateBrand
   return platformTokens.has(normalizedCandidate);
 }
 
-// אינטגרציה עם השכבה שכבר יש לך
 function shouldUseGeminiBrandFallback({
   analysis,
   hasUrl = false,
@@ -1152,11 +1258,16 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
 
   try {
     expanded = await expandShortUrl(inputUrl);
-  } catch {
+  } catch (error) {
     expanded = {
       originalUrl: inputUrl,
       finalUrl: inputUrl,
       hops: [],
+      expansionScoreDelta: error.code === "UNSAFE_REDIRECT_TARGET" ? 12 : 0,
+      expansionFinding:
+        error.code === "UNSAFE_REDIRECT_TARGET"
+          ? "הקישור מפנה ליעד פנימי או לפרוטוקול שאינו מורשה, ולכן ההרחבה נחסמה."
+          : "לא ניתן היה לבדוק את שרשרת ההפניות של הקישור.",
     };
   }
 
@@ -1197,6 +1308,24 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
       ? originalManual
       : applyKnownShortenerWarning(analyzeUrl(expanded.finalUrl));
 
+  const hiddenBrandPath =
+    isKnownShortenerUrl(expanded.finalUrl) &&
+    [
+      ...(originalManual.brandDetections || []),
+      ...(expandedManual.brandDetections || []),
+    ].some((detection) => detection.source === "path" && !detection.isLookalike);
+
+  if (hiddenBrandPath) {
+    expandedManual = makeResult({
+      ...expandedManual,
+      riskScore: expandedManual.riskScore + 10,
+      findings: [
+        ...expandedManual.findings,
+        "קישור מקוצר לא חשף יעד סופי ובנתיב שלו נמצא אזכור למותג מוכר.",
+      ],
+    });
+  }
+
   if (expanded.expansionFinding) {
     expandedManual = makeResult({
       ...expandedManual,
@@ -1231,7 +1360,11 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
       context.messageText || "",
       BRAND_CONFIG,
     );
-    expandedManual = originalManual;
+    expandedManual = applyMessageBrandMismatch(
+      expandedManual,
+      context.messageText || "",
+      BRAND_CONFIG,
+    );
   } else {
     expandedManual = applyMessageBrandMismatch(
       expandedManual,
@@ -1247,14 +1380,16 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
       : getSslCertificateDetails(expanded.finalUrl),
   ]);
 
-  originalManual = await applyGeminiBrandFallback(originalManual, {
-    ...context,
-    url: inputUrl,
-  });
-
   if (expanded.finalUrl === inputUrl) {
-    expandedManual = originalManual;
+    expandedManual = await applyGeminiBrandFallback(expandedManual, {
+      ...context,
+      url: inputUrl,
+    });
   } else {
+    originalManual = await applyGeminiBrandFallback(originalManual, {
+      ...context,
+      url: inputUrl,
+    });
     expandedManual = await applyGeminiBrandFallback(expandedManual, {
       ...context,
       url: expanded.finalUrl,
@@ -1270,13 +1405,9 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
       ? originalSslCertificate
       : expandedSslCertificateRaw;
 
-  if (expanded.finalUrl === inputUrl) {
-    expandedManual = originalManual;
-  } else {
-    const expandedSslApplied = applySslSignals(expandedManual, expandedSslCertificate);
-    expandedManual = expandedSslApplied.analysis;
-    expandedManual = applyReachabilitySignals(expandedManual, expandedSslCertificate);
-  }
+  const expandedSslApplied = applySslSignals(expandedManual, expandedSslCertificate);
+  expandedManual = expandedSslApplied.analysis;
+  expandedManual = applyReachabilitySignals(expandedManual, expandedSslCertificate);
 
   const manual =
     expandedManual.riskScore >= originalManual.riskScore
@@ -1287,6 +1418,16 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
     inputUrl,
     expanded.finalUrl,
   ]);
+  const sslCertificate =
+    expandedManual.riskScore >= originalManual.riskScore
+      ? expandedSslCertificate
+      : originalSslCertificate;
+  const marketingClassification = classifyLegitimateMarketingMessage({
+    messageText: context.messageText,
+    destinationAnalysis: expandedManual,
+    sslCertificate: expandedSslCertificate,
+    googleVerdict,
+  });
 
   return {
     originalUrl: inputUrl,
@@ -1297,17 +1438,16 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
     manualAnalysis: manual,
     originalSslCertificate,
     expandedSslCertificate,
-    sslCertificate:
-      expandedManual.riskScore >= originalManual.riskScore
-        ? expandedSslCertificate
-        : originalSslCertificate,
+    sslCertificate,
     googleVerdict,
+    marketingClassification,
   };
 }
 
 module.exports = {
   analyzeUrl,
   expandShortUrl,
+  isKnownShortenerUrl,
   checkUrlWithLayers,
   hasCriticalSslIssue,
   isManualAnalysisUnsafe,
