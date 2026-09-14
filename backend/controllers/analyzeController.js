@@ -6,7 +6,7 @@ function flattenAnalysis(analysis = {}) {
 }
 
 exports.analyzeMessage = (req, res) => {
-  console.log("POST /api/analyze body:", req.body);
+  console.log("New search started");
 
   const { message } = req.body;
 
@@ -16,9 +16,6 @@ exports.analyzeMessage = (req, res) => {
 
   const analysis = analyzeMessage(message);
   const summary = generateSummary(analysis);
-
-  console.log("/api/analyze analysis:", analysis);
-  console.log("/api/analyze summary:", summary);
 
   return res.json({ analysis, summary });
 };
