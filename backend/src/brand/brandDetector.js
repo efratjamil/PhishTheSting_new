@@ -10,7 +10,7 @@ const VISUAL_REPLACEMENTS = [
   [/[3]/g, "e"],
   [/[4]/g, "a"],
   [/[7]/g, "t"],
-  [/[\u05f3\u05f4'"`´]/g, ""],
+  [/['״׳"`´]/g, ""],
 ];
 
 const MIN_CANDIDATE_LENGTH = 4;
@@ -250,7 +250,7 @@ function looksBrandLike(candidate = {}) {
   return (
     normalizedValue.length >= MIN_CANDIDATE_LENGTH &&
     normalizedValue.length <= 24 &&
-    /[a-z\u05d0-\u05ea]/i.test(rawValue) &&
+    /[a-zא-ת]/i.test(rawValue) &&
     (/[0-9@$!|]/.test(rawValue) || /[-_.]/.test(rawValue) || candidate.source !== "message")
   );
 }

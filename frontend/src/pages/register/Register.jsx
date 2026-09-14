@@ -247,7 +247,7 @@ export default function Register() {
                       error={errors.password}
                       required
                       className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 pr-12 text-sm transition-colors duration-200 focus:border-[#449ba2] focus:outline-none focus:ring-2 focus:ring-[#449ba2]"
-                      placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                      placeholder="••••••••"
                     />
                     <button
                       type="button"
