@@ -1,8 +1,31 @@
-# React + Vite
+# PhishTheSting Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The React frontend for PhishTheSting, a phishing detection application. It allows users to analyze messages and links, view results, and manage their scan history.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Requirements: Node.js 18+ and the backend server running.
+
+```bash
+npm install
+npm run dev
+```
+
+The app runs at `http://localhost:5173` by default.
+
+To use a different backend URL, create a `.env` file:
+
+```env
+VITE_API_BASE_URL=http://localhost:5000
+```
+
+## Scripts
+
+- `npm run dev`: start the development server
+- `npm run build`: create a production build
+- `npm run lint`: run ESLint
+- `npm run preview`: preview the production build
+
+## Main Technologies
+
+React, Vite, React Router, Axios, Tailwind CSS, and Framer Motion.
