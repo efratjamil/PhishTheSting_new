@@ -114,7 +114,16 @@ function dedupeCandidates(candidates = []) {
 }
 
 function extractBrandCandidatesFromText(messageText = "") {
-  return dedupeCandidates(buildAdjacentCandidates(tokenizeBrandText(messageText), "message"));
+  const textWithoutUrls = String(messageText)
+    .replace(/\bhttps?:\/\/[^\s<>"']+/gi, " ")
+    .replace(
+      /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi,
+      " ",
+    );
+
+  return dedupeCandidates(
+    buildAdjacentCandidates(tokenizeBrandText(textWithoutUrls), "message"),
+  );
 }
 
 function normalizeUrlInput(url = "") {
