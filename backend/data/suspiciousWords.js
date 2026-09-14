@@ -29,6 +29,7 @@ const suspiciousWordGroups = {
     "חוב",
     "סיבות אבטחה",
     "מכשיר לא ידוע",
+    "החבילה תוחזר",
   ],
   personalInfo: [
     "סיסמה",
