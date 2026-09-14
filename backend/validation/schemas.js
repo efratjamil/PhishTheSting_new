@@ -115,6 +115,13 @@ const checkedLinkSchema = z.object({
   manualAnalysis: manualAnalysisSchema.nullable().optional(),
   googleVerdict: googleVerdictSchema.nullable().optional(),
   sslCertificate: sslCertificateSchema.nullable().optional(),
+  marketingClassification: z
+    .object({
+      isLegitimateMarketing: z.boolean(),
+      matchedBrands: z.array(z.string()),
+    })
+    .nullable()
+    .optional(),
 });
 
 const saveHistorySchema = z.object({
