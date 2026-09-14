@@ -45,7 +45,7 @@ const findUrlLikeSegments = (text) => {
     const start = match.index;
     const end = start + value.length;
     const overlapsSchemeMatch = segments.some(
-      (segment) => start >= segment.start && end <= segment.end
+      (segment) => start >= segment.start && end <= segment.end,
     );
 
     if (!overlapsSchemeMatch) {
@@ -59,7 +59,7 @@ const findUrlLikeSegments = (text) => {
 const extractUrls = (text) => {
   const matches = findUrlLikeSegments(text).map((segment) => segment.value);
   const normalizedUrls = matches.map((url) =>
-    /^https?:\/\//i.test(url) ? url : `https://${url}`
+    /^https?:\/\//i.test(url) ? url : `https://${url}`,
   );
 
   return [...new Set(normalizedUrls)];
@@ -162,7 +162,8 @@ export default function Analyze() {
             : null,
           googleVerdict: response.data.googleVerdict || null,
           sslCertificate: response.data.sslCertificate || null,
-          marketingClassification: response.data.marketingClassification || null,
+          marketingClassification:
+            response.data.marketingClassification || null,
         }));
 
         urlThreats = checkedLinks.filter((result) => isFlaggedLink(result));
@@ -176,7 +177,8 @@ export default function Analyze() {
       const legitimateMarketing =
         checkedLinks.length > 0 &&
         checkedLinks.every(
-          (link) => link.marketingClassification?.isLegitimateMarketing === true
+          (link) =>
+            link.marketingClassification?.isLegitimateMarketing === true,
         ) &&
         !urlAnalysis &&
         !urlCaution;
@@ -211,7 +213,7 @@ export default function Analyze() {
             },
             {
               headers: getAuthHeaders(),
-            }
+            },
           );
         } catch {
           // Saving history must not block the analysis result.
@@ -249,6 +251,15 @@ export default function Analyze() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleMessageKeyDown = (event) => {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    handleAnalyze();
   };
 
   const exampleMessages = [
@@ -300,6 +311,7 @@ export default function Analyze() {
                       <textarea
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={handleMessageKeyDown}
                         placeholder="הדבק כאן את ההודעה שקיבלת (אימייל, SMS, WhatsApp וכו')..."
                         className="h-28 w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 transition-colors duration-200 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 md:h-32"
                         dir="rtl"

@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowPathIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
   ShieldCheckIcon,
@@ -105,6 +104,16 @@ function getSslCertificateLabel(certificate) {
 
 function hasFinding(findings = [], expectedFinding = "") {
   return findings.some((finding) => String(finding).includes(expectedFinding));
+}
+
+function getCondensedFindings(findings = []) {
+  const visibleFindings = findings
+    .map((finding) => String(finding))
+    .filter((finding) => !finding.includes("The candidate brand"));
+
+  return [...visibleFindings.slice(0, 2), visibleFindings.at(-1)].filter(
+    (finding, index, values) => values.indexOf(finding) === index,
+  );
 }
 
 function isFlaggedLink(link = {}) {
@@ -471,6 +480,9 @@ export default function Result() {
                               isShortened,
                               impersonation,
                             });
+                            const condensedFindings = getCondensedFindings(
+                              checkedLink?.manualAnalysis?.findings || [],
+                            );
 
                             return (
                               <div
@@ -576,20 +588,10 @@ export default function Result() {
                                                   <p className="mb-1 font-semibold">
                                                     סיבות לזיהוי
                                                   </p>
-                                                  {(
-                                                    checkedLink.manualAnalysis
-                                                      ?.findings || []
-                                                  ).length > 0 ? (
+                                                  {condensedFindings.length > 0 ? (
                                                     <ul className="list-disc space-y-1 pr-4">
-                                                      {(
-                                                        checkedLink
-                                                          .manualAnalysis
-                                                          ?.findings || []
-                                                      ).map(
-                                                        (
-                                                          finding,
-                                                          findingIndex,
-                                                        ) => (
+                                                      {condensedFindings.map(
+                                                        (finding, findingIndex) => (
                                                           <li
                                                             key={`${url}-finding-${findingIndex}`}
                                                           >
@@ -742,7 +744,7 @@ export default function Result() {
                       textAnalysis,
                       urlAnalysis,
                       categories: analysis,
-                      links: flaggedLinks,
+                      links: allCheckedLinks,
                     }}
                   />
                 </div>
@@ -760,7 +762,6 @@ export default function Result() {
                 size="lg"
                 className="shadow-glow px-6 py-2.5"
               >
-                <ArrowPathIcon className="ml-2 h-5 w-5" />
                 ניתוח חדש
               </Button>
             </motion.div>

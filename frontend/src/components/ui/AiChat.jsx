@@ -25,6 +25,30 @@ function formatTimestamp(timestamp) {
   });
 }
 
+function renderChatReply(text = "") {
+  const lines = String(text).split("\n");
+
+  return lines.map((line, lineIndex) => {
+    const displayLine = line.replace(/^\s*\*\s+/, "• ");
+    const parts = displayLine.split(/(\*\*[^*]+\*\*)/g);
+
+    return (
+      <span key={`${lineIndex}-${displayLine}`}>
+        {parts.map((part, partIndex) =>
+          part.startsWith("**") && part.endsWith("**") ? (
+            <strong key={`${lineIndex}-${partIndex}`}>
+              {part.slice(2, -2)}
+            </strong>
+          ) : (
+            part
+          ),
+        )}
+        {lineIndex < lines.length - 1 && <br />}
+      </span>
+    );
+  });
+}
+
 export default function AiChat({ sourceMessage, analysisPayload }) {
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
@@ -180,7 +204,9 @@ export default function AiChat({ sourceMessage, analysisPayload }) {
                         }`}
                       >
                         <p className="text-sm leading-6 whitespace-pre-wrap">
-                          {message.text}
+                          {message.role === "bot"
+                            ? renderChatReply(message.text)
+                            : message.text}
                         </p>
                         <p
                           className={`mt-2 text-[11px] ${
