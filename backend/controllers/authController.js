@@ -362,7 +362,6 @@ exports.updateProfile = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
-    console.log("forgotPassword: reset requested", { email });
 
     const user = await User.findOne({ email });
 
@@ -370,7 +369,6 @@ exports.forgotPassword = async (req, res) => {
       "אם קיים חשבון עם כתובת האימייל הזו, נשלח קישור לאיפוס סיסמה.";
 
     if (!user) {
-      console.log("forgotPassword: user not found, returning generic response");
       await logSecurityEvent({
         req,
         email,
@@ -396,12 +394,6 @@ exports.forgotPassword = async (req, res) => {
       resetLink,
     });
 
-    console.log("forgotPassword: email send result", {
-      email: user.email,
-      delivered: mailResult.delivered,
-      fallback: mailResult.fallback,
-      failed: mailResult.failed,
-    });
     await logSecurityEvent({
       req,
       user,

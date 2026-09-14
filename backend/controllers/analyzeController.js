@@ -32,6 +32,7 @@ exports.saveAnalysisHistory = async (req, res) => {
       matchedWords,
       extractedUrls,
       urlAnalysis,
+      urlCaution,
       checkedLinks,
       urlThreats,
     } = req.body;
@@ -70,6 +71,7 @@ exports.saveAnalysisHistory = async (req, res) => {
         : flattenAnalysis(safeAnalysis),
       extractedUrls: Array.isArray(extractedUrls) ? extractedUrls : [],
       urlAnalysis: Boolean(urlAnalysis),
+      urlCaution: Boolean(urlCaution),
       checkedLinks: Array.isArray(checkedLinks) ? checkedLinks : [],
       urlThreats: Array.isArray(urlThreats) ? urlThreats : [],
     });

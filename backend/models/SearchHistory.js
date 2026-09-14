@@ -16,6 +16,7 @@ const SearchHistorySchema = new mongoose.Schema({
   matchedWords: { type: [String], default: [] },
   extractedUrls: { type: [String], default: [] },
   urlAnalysis: { type: Boolean, default: false },
+  urlCaution: { type: Boolean, default: false },
   checkedLinks: { type: [Object], default: [] },
   urlThreats: { type: [Object], default: [] },
   createdAt: { type: Date, default: Date.now },
