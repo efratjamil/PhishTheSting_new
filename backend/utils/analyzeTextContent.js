@@ -6,6 +6,7 @@ const {
   detectBrandDetections,
   isOfficialDomainMatch,
 } = require("../src/brand/brandDetector");
+const { isKnownShortenerUrl } = require("../src/utils/urlAnalyzer");
 
 const categorySummaryLabels = {
   urgency: "שפה מלחיצה",
@@ -101,6 +102,12 @@ function detectSuspiciousBrandUrls(text = "") {
       const normalizedUrl = /^https?:\/\//i.test(urlText)
         ? urlText
         : `https://${urlText}`;
+
+      // A shortening host (for example bit.ly) is not a brand impersonation.
+      if (isKnownShortenerUrl(normalizedUrl)) {
+        continue;
+      }
+
       const parsed = new URL(normalizedUrl);
       const domainInfo = parseDomain(parsed.hostname, {
         allowIcannDomains: true,
@@ -189,22 +196,15 @@ function analyzeMessage(message = "") {
     }
   }
 
-  if (containsUrlLikeText(message) && hasMeaningfulNonUrlText(message)) {
-    analysis.action = removeOverlappingMatches([
-      ...(analysis.action || []),
-      "קישור",
-    ]);
-  }
-
   const suspiciousBrandUrlMatches = detectSuspiciousBrandUrls(message);
   if (suspiciousBrandUrlMatches.length > 0) {
     analysis.technical = removeOverlappingMatches([
       ...(analysis.technical || []),
-      "\u05d3\u05d5\u05de\u05d9\u05d9\u05df \u05de\u05ea\u05d7\u05d6\u05d4",
+      "דומיין מתחזה",
     ]);
     analysis.technical = removeOverlappingMatches([
       ...(analysis.technical || []),
-      "\u05d4\u05ea\u05d7\u05d6\u05d5\u05ea \u05dc\u05de\u05d5\u05ea\u05d2",
+      "התחזות למותג",
     ]);
     analysis.bait = removeOverlappingMatches([
       ...(analysis.bait || []),
@@ -216,7 +216,7 @@ function analyzeMessage(message = "") {
   if (brandLikeTextSignals.length > 0) {
     analysis.technical = removeOverlappingMatches([
       ...(analysis.technical || []),
-      "\u05d4\u05ea\u05d7\u05d6\u05d5\u05ea \u05dc\u05de\u05d5\u05ea\u05d2",
+      "התחזות למותג",
     ]);
     analysis.bait = removeOverlappingMatches([
       ...(analysis.bait || []),
