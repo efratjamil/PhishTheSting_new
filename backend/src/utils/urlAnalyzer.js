@@ -1,4 +1,3 @@
-// npm i tldts
 const { URL } = require("node:url");
 const { isIP } = require("node:net");
 const { lookup } = require("node:dns/promises");
@@ -293,17 +292,9 @@ function labelHasMixedScripts(label) {
 }
 
 function getBrandAliases(rule = {}) {
-  return [...new Set([rule.displayName, ...(rule.aliases || [])])]
+  return [...new Set(rule.aliases || [])]
     .map((value) => String(value || "").trim())
     .filter(Boolean);
-}
-
-function getOfficialDomains(rule = {}) {
-  return new Set(
-    (rule.officialDomains || []).map((domain) =>
-      String(domain || "").toLowerCase(),
-    ),
-  );
 }
 
 function detectBrandRisk(hostname, registrableDomain, brandConfig) {
@@ -403,6 +394,14 @@ function detectPathLookalikeRisk(parsedUrl, registrableDomain, brandConfig) {
 function detectPathBrandLookalikeRisk(parsedUrl, registrableDomain, brandConfig) {
   const findings = [];
   let score = 0;
+  const hostnameIsKnownOfficial = brandConfig.some((rule) =>
+    isOfficialDomainMatch(parsedUrl.hostname, rule.officialDomains || []),
+  );
+
+  if (hostnameIsKnownOfficial) {
+    return { findings, score };
+  }
+
   const pathTokens = tokenize(parsedUrl.pathname);
   const tokenCandidates = [...pathTokens];
 
@@ -415,8 +414,6 @@ function detectPathBrandLookalikeRisk(parsedUrl, registrableDomain, brandConfig)
     if (!tokenVisualSkeleton || tokenVisualSkeleton.length < 3) continue;
 
     for (const rule of brandConfig) {
-      if (getOfficialDomains(rule).has(registrableDomain)) continue;
-
       let matchedBrand = false;
 
       for (const alias of getBrandAliases(rule)) {
@@ -466,6 +463,7 @@ function hasCriticalSslIssue(sslCertificate = {}) {
 
   if (sslCertificate.hasHttps === false) return true;
   if (sslCertificate.hasCertificate === false) return true;
+  if (sslCertificate.certificateTrusted === false) return true;
   if (sslCertificate.certificateValid === false || sslCertificate.isExpired === true) {
     return true;
   }
@@ -556,6 +554,13 @@ function applySslSignals(analysis, sslCertificate) {
     (sslCertificate.certificateValid === false || sslCertificate.isExpired === true)
   ) {
     addSslFinding(30, "תעודת ה-SSL אינה בתוקף או שפג תוקפה");
+  }
+
+  if (
+    sslCertificate.hasCertificate === true &&
+    sslCertificate.certificateTrusted === false
+  ) {
+    addSslFinding(35, "שרשרת האמון של תעודת ה-SSL אינה תקינה");
   }
 
   if (

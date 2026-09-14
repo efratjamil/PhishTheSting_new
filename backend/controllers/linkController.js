@@ -49,7 +49,6 @@ async function postCheckUrlSafety(req, res, next) {
           message: error.message,
           statusCode: error.statusCode || null,
         });
-
         return {
           safe: null,
           threats: [],
@@ -92,12 +91,18 @@ async function postCheckUrlSafety(req, res, next) {
       ]),
     ];
     const googleFlagged = result.googleVerdict?.safe === false;
-    const safe = !manualUnsafe && !googleFlagged;
+    const safetyStatus = googleUnavailable
+      ? "unknown"
+      : !manualUnsafe && !googleFlagged
+        ? "safe"
+        : "suspicious";
+    const safe = safetyStatus === "safe";
 
     console.log("/api/links/check-safety layered result:", {
       originalUrl: result.originalUrl,
       expandedUrl: result.expandedUrl,
       redirectHops: result.redirectHops,
+      safetyStatus,
       manualRiskLevel,
       manualUnsafe,
       manualRiskScore: result.manualAnalysis?.riskScore,
@@ -115,6 +120,7 @@ async function postCheckUrlSafety(req, res, next) {
 
     return res.json({
       safe,
+      safetyStatus,
       threats,
       originalUrl: result.originalUrl,
       expandedUrl: result.expandedUrl,
@@ -131,6 +137,7 @@ async function postCheckUrlSafety(req, res, next) {
     });
   } catch (err) {
     const statusCode = err.statusCode || 500;
+    console.error("Link safety check failed", { statusCode });
     return res.status(statusCode).json({
       ok: false,
       error: err.message || "Safe Browsing check failed",

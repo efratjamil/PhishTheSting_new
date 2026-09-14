@@ -44,9 +44,7 @@ ${resetLink}
   if (result.skipped) {
     console.warn(
       "sendPasswordResetEmail: SMTP not configured, using development fallback",
-      {
-        email,
-      },
+      { email },
     );
 
     return {

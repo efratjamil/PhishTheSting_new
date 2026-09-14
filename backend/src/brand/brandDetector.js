@@ -3,18 +3,36 @@ const { parse: parseDomain } = require("tldts");
 const { BRAND_CONFIG } = require("./brandConfig");
 
 const VISUAL_REPLACEMENTS = [
-  [/[@]/g, "a"],
-  [/[0o]/g, "o"],
-  [/[1!|i]/g, "l"],
+  [/[@4]/g, "a"],
+  [/0/g, "o"],
+  [/[1!|]/g, "l"],
   [/[5$]/g, "s"],
   [/[3]/g, "e"],
-  [/[4]/g, "a"],
   [/[7]/g, "t"],
   [/['״׳"`´]/g, ""],
 ];
 
 const MIN_CANDIDATE_LENGTH = 4;
 const SHORT_ALIAS_MIN_LENGTH = 2;
+const MIN_FUZZY_ALIAS_LENGTH = 5;
+const AMBIGUOUS_MESSAGE_ALIASES = new Set([
+  "apple",
+  "hot",
+  "meta",
+  "office",
+  "partner",
+  "slack",
+  "wise",
+  "zoom",
+]);
+const SOURCE_PRIORITY = {
+  domain: 5,
+  hostname: 4,
+  subdomain: 3,
+  path: 2,
+  message: 1,
+  url: 0,
+};
 
 function safeDecode(text) {
   try {
@@ -25,17 +43,20 @@ function safeDecode(text) {
 }
 
 function normalizeBrandToken(value = "") {
-  let normalized = String(value).toLowerCase().normalize("NFKC");
-
-  for (const [pattern, replacement] of VISUAL_REPLACEMENTS) {
-    normalized = normalized.replace(pattern, replacement);
-  }
-
-  return normalized.replace(/[^\p{L}\p{N}]+/gu, "");
+  return String(value)
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 function createVisualSkeleton(value = "") {
-  return normalizeBrandToken(value).replace(/[il]/g, "l");
+  let skeleton = String(value).toLowerCase().normalize("NFKC");
+
+  for (const [pattern, replacement] of VISUAL_REPLACEMENTS) {
+    skeleton = skeleton.replace(pattern, replacement);
+  }
+
+  return skeleton.replace(/[^\p{L}\p{N}]+/gu, "").replace(/[il]/g, "l");
 }
 
 function tokenizeBrandText(value = "") {
@@ -205,7 +226,7 @@ function extractBrandCandidates({
 }
 
 function aliasEntriesForBrand(brand) {
-  return [...new Set([brand.displayName, ...(brand.aliases || [])])]
+  return [...new Set(brand.aliases || [])]
     .map((alias) => ({
       alias,
       normalizedAlias: normalizeBrandToken(alias),
@@ -232,10 +253,29 @@ function isKnownShortAlias(candidate = {}, brandConfig = BRAND_CONFIG) {
 }
 
 function isOfficialDomainMatch(fullDomain = "", officialDomains = []) {
-  const normalizedDomain = String(fullDomain).toLowerCase().replace(/\.$/, "");
+  const normalizeDomain = (value) => {
+    const rawValue = String(value || "").trim().toLowerCase();
+    if (!rawValue) return "";
+
+    try {
+      const parsed = new URL(
+        /^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`,
+      );
+      return parsed.hostname.replace(/\.$/, "").replace(/^www\./, "");
+    } catch {
+      return rawValue
+        .split(/[/?#]/, 1)[0]
+        .replace(/\.$/, "")
+        .replace(/^www\./, "");
+    }
+  };
+
+  const normalizedDomain = normalizeDomain(fullDomain);
+  if (!normalizedDomain) return false;
 
   return officialDomains.some((officialDomain) => {
-    const normalizedOfficial = String(officialDomain).toLowerCase();
+    const normalizedOfficial = normalizeDomain(officialDomain);
+    if (!normalizedOfficial) return false;
     return (
       normalizedDomain === normalizedOfficial ||
       normalizedDomain.endsWith(`.${normalizedOfficial}`)
@@ -263,6 +303,13 @@ function scoreBrandCandidate(candidate, aliasEntry) {
   const visualAlias = aliasEntry.visualAlias;
 
   if (!normalizedValue || !normalizedAlias) return null;
+  if (
+    candidate.source === "message" &&
+    AMBIGUOUS_MESSAGE_ALIASES.has(normalizedAlias) &&
+    normalizedValue === normalizedAlias
+  ) {
+    return null;
+  }
 
   if (rawValue.toLowerCase() === String(aliasEntry.alias).toLowerCase()) {
     return {
@@ -276,7 +323,7 @@ function scoreBrandCandidate(candidate, aliasEntry) {
     return {
       confidence: 95,
       reason: `normalized match for "${aliasEntry.alias}"`,
-      isLookalike: true,
+      isLookalike: false,
     };
   }
 
@@ -289,7 +336,11 @@ function scoreBrandCandidate(candidate, aliasEntry) {
   }
 
   const distance = levenshtein(normalizedValue, normalizedAlias);
-  if (distance === 1) {
+  if (
+    distance === 1 &&
+    Math.min(normalizedValue.length, normalizedAlias.length) >=
+      MIN_FUZZY_ALIAS_LENGTH
+  ) {
     return {
       confidence: 84,
       reason: `edit distance 1 from "${aliasEntry.alias}"`,
@@ -299,6 +350,7 @@ function scoreBrandCandidate(candidate, aliasEntry) {
 
   if (
     distance === 2 &&
+    Math.min(normalizedValue.length, normalizedAlias.length) >= 6 &&
     Math.max(normalizedValue.length, normalizedAlias.length) >= 8
   ) {
     return {
@@ -371,9 +423,15 @@ function detectBrandDetections(candidates = [], brandConfig = BRAND_CONFIG) {
 
   const bestDetections = new Map();
   for (const detection of detections) {
-    const key = `${detection.detectedBrand}:${detection.source}:${detection.rawValue}`;
+    const key = `${detection.detectedBrand}:${detection.normalizedValue}`;
     const current = bestDetections.get(key);
-    if (!current || detection.confidence > current.confidence) {
+    if (
+      !current ||
+      detection.confidence > current.confidence ||
+      (detection.confidence === current.confidence &&
+        (SOURCE_PRIORITY[detection.source] || 0) >
+          (SOURCE_PRIORITY[current.source] || 0))
+    ) {
       bestDetections.set(key, detection);
     }
   }
@@ -411,8 +469,11 @@ function analyzeUrlBrandSignals({
 
   const findings = [];
   let scoreDelta = 0;
-  let lookalikeMatchCount = 0;
-  let officialBrandConfidence = 0;
+  const officialBrands = new Set();
+  const riskByBrand = new Map();
+  const hostnameIsKnownOfficial = brandConfig.some((brand) =>
+    isOfficialDomainMatch(hostname || registrableDomain, brand.officialDomains || []),
+  );
 
   for (const detection of detections) {
     const onOfficialDomain = isOfficialDomainMatch(
@@ -420,9 +481,12 @@ function analyzeUrlBrandSignals({
       detection.officialDomains,
     );
 
-    if (onOfficialDomain && !detection.isLookalike) {
-      officialBrandConfidence += 1;
-      scoreDelta -= detection.source === "hostname" || detection.source === "domain" ? 8 : 4;
+    if (hostnameIsKnownOfficial) {
+      if (onOfficialDomain && !officialBrands.has(detection.detectedBrand)) {
+        officialBrands.add(detection.detectedBrand);
+        scoreDelta -=
+          detection.source === "hostname" || detection.source === "domain" ? 8 : 4;
+      }
       continue;
     }
 
@@ -435,23 +499,30 @@ function analyzeUrlBrandSignals({
         ? 32
         : 28
       : highValueSource
-        ? 18
+        ? 30
         : 14;
 
-    scoreDelta += basePoints;
-    if (detection.isLookalike) {
-      lookalikeMatchCount += 1;
+    const currentRisk = riskByBrand.get(detection.detectedBrand);
+    if (
+      !currentRisk ||
+      basePoints > currentRisk.basePoints ||
+      (basePoints === currentRisk.basePoints &&
+        detection.confidence > currentRisk.detection.confidence)
+    ) {
+      riskByBrand.set(detection.detectedBrand, { basePoints, detection });
     }
+  }
 
+  for (const { basePoints, detection } of riskByBrand.values()) {
+    scoreDelta += basePoints;
     findings.push(
-      onOfficialDomain
-        ? `זוהה שימוש בשם הדומה למותג ${detection.detectedBrand} בתוך ה-${detection.source}, אך הכתיב נראה מטעה.`
-        : `זוהה שימוש בשם הדומה למותג ${detection.detectedBrand} בדומיין שאינו רשמי.`,
+      `זוהה שימוש בשם הדומה למותג ${detection.detectedBrand} בדומיין שאינו רשמי.`,
     );
   }
 
   for (const ambiguousMatch of ambiguousMatches) {
     if (
+      !hostnameIsKnownOfficial &&
       !isOfficialDomainMatch(hostname || registrableDomain, ambiguousMatch.officialDomains)
     ) {
       scoreDelta += 8;
@@ -464,8 +535,10 @@ function analyzeUrlBrandSignals({
     detections,
     ambiguousMatches,
     unmatchedBrandLikeCandidates,
-    lookalikeMatchCount,
-    officialBrandConfidence,
+    lookalikeMatchCount: [...riskByBrand.values()].filter(
+      ({ detection }) => detection.isLookalike,
+    ).length,
+    officialBrandConfidence: officialBrands.size,
   };
 }
 
