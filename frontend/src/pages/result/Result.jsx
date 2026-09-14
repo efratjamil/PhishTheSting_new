@@ -97,7 +97,7 @@ function extractBrandFromUnofficialFinding(findings = []) {
 
 function formatSslDate(value = "") {
   if (!value) {
-    return "\u05dc\u05d0 \u05d6\u05de\u05d9\u05df";
+    return "לא זמין";
   }
 
   const parsedDate = new Date(value);
@@ -110,18 +110,18 @@ function formatSslDate(value = "") {
 
 function getSslStatusLabel(certificate) {
   if (!certificate) {
-    return "\u05dc\u05d0 \u05d4\u05ea\u05e7\u05d1\u05dc \u05de\u05d9\u05d3\u05e2";
+    return "לא התקבל מידע";
   }
 
-  return certificate.hasHttps ? "\u05db\u05df" : "\u05dc\u05d0";
+  return certificate.hasHttps ? "כן" : "לא";
 }
 
 function getSslCertificateLabel(certificate) {
   if (!certificate) {
-    return "\u05dc\u05d0 \u05d4\u05ea\u05e7\u05d1\u05dc \u05de\u05d9\u05d3\u05e2";
+    return "לא התקבל מידע";
   }
 
-  return certificate.hasCertificate ? "\u05db\u05df" : "\u05dc\u05d0";
+  return certificate.hasCertificate ? "כן" : "לא";
 }
 
 function hasFinding(findings = [], expectedFinding = "") {
@@ -184,6 +184,7 @@ export default function Result() {
     extractedUrls = [],
     checkedLinks = [],
     urlThreats = [],
+    legitimateMarketing = false,
     apiError,
   } = location.state || {};
 
@@ -220,6 +221,14 @@ export default function Result() {
   );
 
   const alertContent = useMemo(() => {
+    if (legitimateMarketing) {
+      return {
+        title: "הודעה שיווקית לגיטימית",
+        description:
+          "המותג שהוזכר בהודעה תואם ליעד שאליו הקישור הורחב, ולא זוהתה בקשה למידע רגיש.",
+      };
+    }
+
     if (!isSuspicious && nonHttpsLink) {
       return {
         title: "לא זוהו סימני פישינג מובהקים",
@@ -290,7 +299,7 @@ export default function Result() {
       description:
         "זוהו סימנים ברורים של ניסיון פישינג בתוכן או בקישורים. אין ללחוץ על קישורים או למסור פרטים.",
     };
-  }, [brandThreat, isSuspicious, nonHttpsLink, shortenedThreat, sslThreat]);
+  }, [brandThreat, isSuspicious, legitimateMarketing, nonHttpsLink, shortenedThreat, sslThreat]);
 
   const recommendations = isSuspicious
     ? [
@@ -504,15 +513,9 @@ export default function Result() {
                                             </p>
                                           )}
 
-                                          {impersonation && (
+                                          {impersonation?.domain && (
                                             <p className="text-danger-700">
-                                              ⚠️ התחזות ל־
-                                              {formatBrandName(
-                                                impersonation.brand,
-                                              )}{" "}
-                                              {impersonation.domain
-                                                ? `(דומיין אמיתי: ${impersonation.domain})`
-                                                : ""}
+                                              דומיין רשמי: {impersonation.domain}
                                             </p>
                                           )}
                                         </div>
@@ -652,9 +655,7 @@ export default function Result() {
                                                   </p>
                                                   <ul className="list-disc space-y-1 pr-4">
                                                     <li>
-                                                      {isShortened
-                                                        ? "Short URL expansion: בוצע ניסיון לחשוף את היעד המקוצר."
-                                                        : "Short URL expansion: לא נדרש עבור קישור שאינו מקוצר."}
+                                                      Short URL expansion: נבדקה שרשרת ההפניות של הקישור.
                                                     </li>
                                                     <li>
                                                       manual analysis: רמת
