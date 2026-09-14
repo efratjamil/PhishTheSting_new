@@ -8,6 +8,31 @@ function buildAnalysisSummary(analysis = {}) {
   }
 }
 
+function buildChatPrompt({ message, analysis, question }) {
+  return `
+You are a cybersecurity assistant helping a user understand a phishing analysis.
+
+Rules:
+- Respond only in Hebrew.
+- Be concise, clear, and practical.
+- Use only the supplied message and analysis context. Do not invent facts.
+- Explain which checks were performed and why a link or message is suspicious, safe, or uncertain.
+- When relevant, refer to manual findings, redirect expansion, SSL certificate data, Google Safe Browsing, brand impersonation, and marketing classification.
+- Google Safe Browsing with no matches does not prove a link is legitimate.
+- If information is missing or inconclusive, say so clearly.
+- End with a concrete, safe recommendation for the user.
+
+Original message:
+${message}
+
+Full analysis context:
+${buildAnalysisSummary(analysis)}
+
+User question:
+${question}
+`;
+}
+
 async function generateAiReply({ message, analysis, question }) {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -17,37 +42,12 @@ async function generateAiReply({ message, analysis, question }) {
     throw error;
   }
 
-  const prompt = `
-אתה עוזר אבטחה שמסביר למשתמשים אם הודעה חשודה או לא.
-
-חוקים:
-- ענה רק בעברית.
-- היה קצר, ברור ופשוט.
-- השתמש רק במידע שסופק לך.
-- אל תמציא מידע שלא קיים.
-- אם אין מספיק מידע, תגיד שאינך בטוח.
-- תמיד תסיים בהמלצה בטוחה וברורה למשתמש.
-
-ההודעה המקורית:
-${message}
-
-ניתוח המערכת:
-${buildAnalysisSummary(analysis)}
-
-שאלת המשתמש:
-${question}
-`;
-
   const response = await axios.post(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
     {
       contents: [
         {
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
+          parts: [{ text: buildChatPrompt({ message, analysis, question }) }],
         },
       ],
     },
@@ -56,6 +56,7 @@ ${question}
       headers: {
         "Content-Type": "application/json",
       },
+      proxy: false,
     },
   );
 
@@ -132,6 +133,11 @@ Required JSON schema:
 `;
 
   try {
+    console.log("Gemini brand analysis started", {
+      candidateBrand,
+      fullDomain,
+    });
+
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
       {
@@ -146,6 +152,7 @@ Required JSON schema:
         headers: {
           "Content-Type": "application/json",
         },
+        proxy: false,
       },
     );
 
@@ -157,7 +164,7 @@ Required JSON schema:
       return null;
     }
 
-    return {
+    const assessment = {
       isBrand: Boolean(parsed.isBrand),
       realBrandName:
         typeof parsed.realBrandName === "string" ? parsed.realBrandName.trim() : "",
@@ -167,7 +174,21 @@ Required JSON schema:
         : 0,
       reason: typeof parsed.reason === "string" ? parsed.reason.trim() : "",
     };
-  } catch {
+
+    console.log("Gemini brand analysis completed", {
+      isBrand: assessment.isBrand,
+      realBrandName: assessment.realBrandName,
+      isLikelyImpersonation: assessment.isLikelyImpersonation,
+      confidence: assessment.confidence,
+    });
+
+    return assessment;
+  } catch (error) {
+    console.error("Gemini brand analysis failed", {
+      code: error.code || null,
+      status: error.response?.status || null,
+      message: error.response?.data?.error?.message || error.message,
+    });
     return null;
   }
 }
