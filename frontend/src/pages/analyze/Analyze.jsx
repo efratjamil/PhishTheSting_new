@@ -70,6 +70,10 @@ const isFlaggedLink = (link = {}) => {
     return false;
   }
 
+  if (link.marketingClassification?.isLegitimateMarketing === true) {
+    return false;
+  }
+
   if (link.safe === false || link.manualUnsafe === true) {
     return true;
   }

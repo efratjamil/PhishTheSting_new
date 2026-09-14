@@ -427,7 +427,7 @@ function detectPathBrandLookalikeRisk(parsedUrl, registrableDomain, brandConfig)
         if (token.toLowerCase() === normalizedAlias) continue;
 
         findings.push(
-          `׳”׳˜׳•׳§׳ "${token}" ׳‘׳ ׳×׳™׳‘ ׳ ׳¨׳׳” ׳›׳׳• ׳”׳׳•׳×׳’ "${rule.displayName}" ׳׳ ׳ ׳›׳×׳‘ ׳‘׳¦׳•׳¨׳” ׳׳‘׳׳‘׳׳×`,
+          `הטוקן "${token}" בנתיב נראה כמו המותג "${rule.displayName}" אך נכתב בצורה מבלבלת`,
         );
         score += 24;
         matchedBrand = true;
@@ -540,43 +540,29 @@ function applySslSignals(analysis, sslCertificate) {
   };
 
   if (sslCertificate.hasHttps === false) {
-    addSslFinding(10, "הקישור לא משתמש ב-HTTPS");
-  } else if (sslCertificate.hasHttps === true && sslCertificate.hasCertificate === false) {
-    addSslFinding(15, "לא נמצאה תעודת SSL תקינה לקישור");
+    addSslFinding(30, "הקישור לא משתמש ב-HTTPS");
+  } else if (sslCertificate.hasCertificate === false) {
+    if (hasDnsResolutionFailure(sslCertificate)) {
+      addSslFinding(45, "הדומיין לא נמצא או שלא ניתן לאמת את הקישור");
+    } else if (hasConnectivityFailure(sslCertificate)) {
+      addSslFinding(40, "לא ניתן להגיע לשרת או לאמת את הקישור");
+    } else {
+      addSslFinding(30, "לא נמצאה תעודת SSL תקינה לקישור");
+    }
   }
 
   if (
     sslCertificate.hasCertificate === true &&
     (sslCertificate.certificateValid === false || sslCertificate.isExpired === true)
   ) {
-    addSslFinding(15, "תעודת ה-SSL אינה בתוקף או שפג תוקפה");
+    addSslFinding(30, "תעודת ה-SSL אינה בתוקף או שפג תוקפה");
   }
 
   if (
     sslCertificate.hasCertificate === true &&
     sslCertificate.hostnameMatchesCertificate === false
   ) {
-    addSslFinding(35, "שם הדומיין לא תואם לתעודת ה-SSL");
-  }
-
-  if (sslCertificate.hasHttps === false) {
-    nextScore += 20;
-  } else if (sslCertificate.hasHttps === true && sslCertificate.hasCertificate === false) {
-    nextScore += 10;
-  }
-
-  if (
-    sslCertificate.hasCertificate === true &&
-    (sslCertificate.certificateValid === false || sslCertificate.isExpired === true)
-  ) {
-    nextScore += 15;
-  }
-
-  if (
-    sslCertificate.hasCertificate === true &&
-    sslCertificate.hostnameMatchesCertificate === false
-  ) {
-    nextScore += 10;
+    addSslFinding(45, "שם הדומיין לא תואם לתעודת ה-SSL");
   }
 
   const updatedAnalysis = makeResult({
@@ -593,46 +579,6 @@ function applySslSignals(analysis, sslCertificate) {
     sslCertificate,
     sslFindings,
   };
-}
-
-function applyReachabilitySignals(analysis, sslCertificate) {
-  if (!analysis || !sslCertificate) {
-    return analysis;
-  }
-
-  const nextFindings = [...(analysis.findings || [])];
-  let nextScore = analysis.riskScore || 0;
-
-  const addFinding = (points, message) => {
-    nextScore += points;
-    nextFindings.push(message);
-  };
-
-  if (sslCertificate.hasHttps === false) {
-    nextScore = Math.max(nextScore, 30);
-  } else if (sslCertificate.hasHttps === true && sslCertificate.hasCertificate === false) {
-    if (hasDnsResolutionFailure(sslCertificate)) {
-      addFinding(20, "הדומיין לא נמצא או שלא ניתן לאמת את הקישור");
-    } else if (hasConnectivityFailure(sslCertificate)) {
-      addFinding(15, "לא ניתן להגיע לשרת או לאמת את הקישור");
-    } else {
-      addFinding(5, "לא נמצאה תעודת SSL תקינה לקישור");
-    }
-  }
-
-  if (
-    sslCertificate.hasCertificate === true &&
-    (sslCertificate.certificateValid === false || sslCertificate.isExpired === true)
-  ) {
-    addFinding(15, "תעודת ה-SSL אינה בתוקף או שפג תוקפה");
-  }
-
-  return makeResult({
-    ...analysis,
-    riskScore: nextScore,
-    findings: [...new Set(nextFindings)],
-    sslCertificate,
-  });
 }
 
 function analyzeUrl(rawUrl, brandConfig = BRAND_CONFIG) {
@@ -1065,7 +1011,7 @@ function classifyLegitimateMarketingMessage({
       includesAnyTerm(messageText, MARKETING_TERMS) &&
       !includesAnyTerm(messageText, SENSITIVE_REQUEST_TERMS) &&
       !isManualAnalysisUnsafe(destinationAnalysis, sslCertificate) &&
-      googleVerdict?.safe !== false,
+      googleVerdict?.safe === true,
   );
 
   return { isLegitimateMarketing, matchedBrands };
@@ -1398,7 +1344,6 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
 
   const originalSslApplied = applySslSignals(originalManual, originalSslCertificate);
   originalManual = originalSslApplied.analysis;
-  originalManual = applyReachabilitySignals(originalManual, originalSslCertificate);
 
   const expandedSslCertificate =
     expanded.finalUrl === inputUrl
@@ -1407,10 +1352,12 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
 
   const expandedSslApplied = applySslSignals(expandedManual, expandedSslCertificate);
   expandedManual = expandedSslApplied.analysis;
-  expandedManual = applyReachabilitySignals(expandedManual, expandedSslCertificate);
 
-  const manual =
-    expandedManual.riskScore >= originalManual.riskScore
+  const useExpandedShortUrlDestination =
+    isKnownShortenerUrl(inputUrl) && expanded.finalUrl !== inputUrl;
+  const manual = useExpandedShortUrlDestination
+    ? expandedManual
+    : expandedManual.riskScore >= originalManual.riskScore
       ? expandedManual
       : originalManual;
 
@@ -1418,8 +1365,9 @@ async function checkUrlWithLayers(inputUrl, checkGoogleSafeBrowsing, context = {
     inputUrl,
     expanded.finalUrl,
   ]);
-  const sslCertificate =
-    expandedManual.riskScore >= originalManual.riskScore
+  const sslCertificate = useExpandedShortUrlDestination
+    ? expandedSslCertificate
+    : expandedManual.riskScore >= originalManual.riskScore
       ? expandedSslCertificate
       : originalSslCertificate;
   const marketingClassification = classifyLegitimateMarketingMessage({
