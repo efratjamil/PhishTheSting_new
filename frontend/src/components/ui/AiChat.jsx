@@ -26,16 +26,19 @@ function formatTimestamp(timestamp) {
 }
 
 function renderChatReply(text = "") {
-  const lines = String(text).split("\n");
+  const normalizedText = String(text)
+    .replace(/\\([*_`])/g, "$1")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+  const lines = normalizedText.split("\n");
 
   return lines.map((line, lineIndex) => {
-    const displayLine = line.replace(/^\s*\*\s+/, "• ");
-    const parts = displayLine.split(/(\*\*[^*]+\*\*)/g);
+    const displayLine = line.replace(/^\s*[-*]\s+/, "• ");
+    const parts = displayLine.split(/(\*\*.+?\*\*)/g);
 
     return (
       <span key={`${lineIndex}-${displayLine}`}>
         {parts.map((part, partIndex) =>
-          part.startsWith("**") && part.endsWith("**") ? (
+          /^\*\*.+\*\*$/.test(part) ? (
             <strong key={`${lineIndex}-${partIndex}`}>
               {part.slice(2, -2)}
             </strong>
