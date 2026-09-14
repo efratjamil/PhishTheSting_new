@@ -127,6 +127,7 @@ async function postCheckUrlSafety(req, res, next) {
       expandedSslCertificate: result.expandedSslCertificate,
       sslCertificate: result.sslCertificate,
       googleVerdict: result.googleVerdict,
+      marketingClassification: result.marketingClassification,
     });
   } catch (err) {
     const statusCode = err.statusCode || 500;
