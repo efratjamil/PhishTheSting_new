@@ -18,10 +18,14 @@ MONGO_URI=mongodb://127.0.0.1:27017/phishingDB
 JWT_SECRET=your-long-random-secret
 FRONTEND_URL=http://localhost:5173
 GOOGLE_SAFE_BROWSING_KEY=your-key
-GEMINI_API_KEY=your-key
+GEMINI_CHAT_API_KEY=your-chat-key
+GEMINI_BRAND_API_KEY=your-brand-analysis-key
 ```
 
 Optional Bitly and SMTP settings are documented in `.env.example`. Never commit the `.env` file.
+
+The AI chat uses `GEMINI_CHAT_API_KEY`, while ambiguous brand analysis uses
+`GEMINI_BRAND_API_KEY`.
 
 Start the server:
 

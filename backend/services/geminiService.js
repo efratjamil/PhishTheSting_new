@@ -34,16 +34,16 @@ ${question}
 }
 
 async function generateAiReply({ message, analysis, question }) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_CHAT_API_KEY;
 
   if (!apiKey) {
-    const error = new Error("GEMINI_API_KEY is not configured");
+    const error = new Error("GEMINI_CHAT_API_KEY is not configured");
     error.statusCode = 500;
     throw error;
   }
 
   const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`,
     {
       contents: [
         {
@@ -98,7 +98,7 @@ async function resolveBrandImpersonationWithGemini({
   messageText,
   extractedUrls = [],
 }) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_BRAND_API_KEY;
 
   if (!apiKey) {
     return null;
@@ -139,7 +139,7 @@ Required JSON schema:
     });
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`,
       {
         contents: [
           {
@@ -167,7 +167,9 @@ Required JSON schema:
     const assessment = {
       isBrand: Boolean(parsed.isBrand),
       realBrandName:
-        typeof parsed.realBrandName === "string" ? parsed.realBrandName.trim() : "",
+        typeof parsed.realBrandName === "string"
+          ? parsed.realBrandName.trim()
+          : "",
       isLikelyImpersonation: Boolean(parsed.isLikelyImpersonation),
       confidence: Number.isFinite(Number(parsed.confidence))
         ? Math.max(0, Math.min(100, Number(parsed.confidence)))
